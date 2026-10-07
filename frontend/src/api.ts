@@ -1,4 +1,4 @@
-import type { ABCResponse, CashFlow, DRE, Product, ProductInput } from "./types";
+import type { ABCResponse, CashFlow, DRE, Product, ProductInput, SaleSummary } from "./types";
 
 const API = "/api";
 
@@ -24,4 +24,6 @@ export const api = {
   dre: (start: string, end: string) => request<DRE>(`/reports/dre?start_date=${start}&end_date=${end}`),
   abc: (start: string, end: string) => request<ABCResponse>(`/reports/abc-curve?start_date=${start}&end_date=${end}`),
   cashFlow: (start: string, end: string) => request<CashFlow>(`/reports/cash-flow?start_date=${start}&end_date=${end}`),
+  sales: () => request<SaleSummary[]>("/sales"),
+  cancelSale: (id: string) => request<void>(`/sales/${id}`, { method: "DELETE" }),
 };

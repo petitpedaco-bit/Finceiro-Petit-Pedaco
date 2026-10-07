@@ -44,3 +44,13 @@ export interface CashFlow {
   expenses: string;
   closing_balance: string;
 }
+
+export interface SaleSummary {
+  id: string;
+  net_total: string;
+  received_total: string;
+  payment_fee_amount: string;
+  payment_method: PaymentMethod;
+  created_at: string;
+  is_cancelled: boolean;
+}
