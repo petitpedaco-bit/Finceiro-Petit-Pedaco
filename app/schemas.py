@@ -19,6 +19,10 @@ class ProductCreate(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     sku: str = Field(min_length=1, max_length=64)
     cost_price: Decimal = Field(ge=0, max_digits=14, decimal_places=2)
+    additional_cost: Decimal = Field(default=Decimal("0"), ge=0, max_digits=14, decimal_places=2)
+    target_margin_percentage: Decimal = Field(default=Decimal("0"), ge=0, le=100, max_digits=5, decimal_places=2)
+    reseller_cash_price: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    reseller_card_price: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
     sale_price: Decimal = Field(ge=0, max_digits=14, decimal_places=2)
     current_stock: int = Field(ge=0)
 
@@ -33,9 +37,24 @@ class ProductCreate(BaseModel):
 
 class ProductUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=160)
+    sku: str | None = Field(default=None, min_length=1, max_length=64)
     sale_price: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
     cost_price: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    additional_cost: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    target_margin_percentage: Decimal | None = Field(default=None, ge=0, le=100, max_digits=5, decimal_places=2)
+    reseller_cash_price: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
+    reseller_card_price: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
     current_stock: int | None = Field(default=None, ge=0)
+
+    @field_validator("name", "sku")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        value = value.strip()
+        if not value:
+            raise ValueError("não pode ser vazio")
+        return value
 
 
 class ProductResponse(ProductCreate):
@@ -63,6 +82,7 @@ class CheckoutItem(BaseModel):
 class CheckoutRequest(BaseModel):
     items: list[CheckoutItem] = Field(min_length=1)
     payment_method: PaymentMethod
+    card_brand: str | None = Field(default=None, max_length=30)
     sale_discount_type: DiscountType | None = None
     sale_discount_value: Decimal = Field(default=Decimal("0"), ge=0, max_digits=14, decimal_places=2)
 
@@ -98,9 +118,22 @@ class SaleResponse(BaseModel):
     gross_total: Decimal
     discount_total: Decimal
     net_total: Decimal
+    payment_fee_amount: Decimal
+    received_total: Decimal
     payment_method: PaymentMethod
     created_at: datetime
     items: list[SaleItemResponse]
+
+
+class SaleSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    net_total: Decimal
+    received_total: Decimal
+    payment_fee_amount: Decimal
+    payment_method: PaymentMethod
+    created_at: datetime
+    is_cancelled: bool
 
 
 class ExpenseCreate(BaseModel):
@@ -120,6 +153,7 @@ class DREResponse(BaseModel):
     cogs: Decimal
     gross_profit: Decimal
     operating_expenses: Decimal
+    payment_fees: Decimal
     net_profit: Decimal
 
 

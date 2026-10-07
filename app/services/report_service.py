@@ -28,11 +28,12 @@ class ReportService:
             func.coalesce(func.sum(Sale.gross_total), 0).label("gross"),
             func.coalesce(func.sum(Sale.discount_total), 0).label("discounts"),
             func.coalesce(func.sum(Sale.net_total), 0).label("net"),
-        ).where(Sale.created_at >= start, Sale.created_at < end)
+            func.coalesce(func.sum(Sale.payment_fee_amount), 0).label("fees"),
+        ).where(Sale.created_at >= start, Sale.created_at < end, Sale.is_cancelled.is_(False))
         revenue = (await self.session.execute(revenue_stmt)).one()
 
         cogs_stmt = select(func.coalesce(func.sum(SaleItem.unit_cost * SaleItem.quantity), 0)).join(Sale).where(
-            Sale.created_at >= start, Sale.created_at < end
+            Sale.created_at >= start, Sale.created_at < end, Sale.is_cancelled.is_(False)
         )
         cogs = (await self.session.scalar(cogs_stmt)) or ZERO
         expenses_stmt = select(func.coalesce(func.sum(CashFlowTransaction.amount), 0)).where(
@@ -41,12 +42,12 @@ class ReportService:
             CashFlowTransaction.occurred_at < end,
         )
         expenses = (await self.session.scalar(expenses_stmt)) or ZERO
-        gross, discounts, net = Decimal(revenue.gross), Decimal(revenue.discounts), Decimal(revenue.net)
+        gross, discounts, net, fees = Decimal(revenue.gross), Decimal(revenue.discounts), Decimal(revenue.net), Decimal(revenue.fees)
         return DREResponse(
             start_date=start_date, end_date=end_date, gross_revenue=gross,
             deductions_and_discounts=discounts, net_revenue=net, cogs=Decimal(cogs),
-            gross_profit=net - Decimal(cogs), operating_expenses=Decimal(expenses),
-            net_profit=net - Decimal(cogs) - Decimal(expenses),
+            gross_profit=net - Decimal(cogs), operating_expenses=Decimal(expenses), payment_fees=fees,
+            net_profit=net - Decimal(cogs) - Decimal(expenses) - fees,
         )
 
     async def get_abc_curve(self, start_date: date, end_date: date) -> ABCCurveResponse:
@@ -58,7 +59,7 @@ class ReportService:
             )
             .join(SaleItem, SaleItem.product_id == Product.id)
             .join(Sale, Sale.id == SaleItem.sale_id)
-            .where(Sale.created_at >= start, Sale.created_at < end)
+            .where(Sale.created_at >= start, Sale.created_at < end, Sale.is_cancelled.is_(False))
             .group_by(Product.id, Product.name)
             .subquery()
         )

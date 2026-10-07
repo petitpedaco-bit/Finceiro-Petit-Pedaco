@@ -15,6 +15,10 @@ class Base(DeclarativeBase):
 class PaymentMethod(str, enum.Enum):
     PIX = "PIX"
     CARD = "CARD"
+    CREDIT_CARD = "CREDIT_CARD"
+    DEBIT_CARD = "DEBIT_CARD"
+    CREDIT_CARD = "CREDIT_CARD"
+    DEBIT_CARD = "DEBIT_CARD"
     CASH = "CASH"
 
 
@@ -30,6 +34,14 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
     sku: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
     cost_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    additional_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
+    target_margin_percentage: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, default=0)
+    reseller_cash_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    reseller_card_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    additional_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
+    target_margin_percentage: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, default=0)
+    reseller_cash_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
+    reseller_card_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     sale_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     current_stock: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -47,6 +59,16 @@ class Sale(Base):
     gross_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     discount_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     net_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    payment_fee_rate: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False, default=0)
+    payment_fee_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
+    received_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    is_cancelled: Mapped[bool] = mapped_column(nullable=False, default=False, index=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    payment_fee_rate: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False, default=0)
+    payment_fee_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
+    received_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    is_cancelled: Mapped[bool] = mapped_column(nullable=False, default=False, index=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     payment_method: Mapped[PaymentMethod] = mapped_column(Enum(PaymentMethod), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
