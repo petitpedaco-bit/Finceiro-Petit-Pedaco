@@ -21,6 +21,11 @@ ambiente local. Para produção, use migrations Alembic versionadas.
 
 ### Cotações vinculadas a produtos
 
+Em **Nova venda**, a lista suspensa mostra todos os produtos cadastrados,
+com nome, SKU, preço e estoque. Selecione um item e clique em **Adicionar à
+venda**. Produtos sem estoque permanecem visíveis, mas indisponíveis para
+seleção; o botão também bloqueia adições quando todo o estoque já está na venda.
+
 Em **Produtos → Novo produto/Editar**, busque uma ficha salva por SKU ou nome.
 Selecione **Usar cotação** para preencher nome, SKU, matéria-prima e custos
 adicionais. Produtos novos recebem o preço sugerido; um SKU já cadastrado abre
