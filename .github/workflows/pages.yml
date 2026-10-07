@@ -22,6 +22,9 @@ jobs:
       - name: Instalar dependências
         working-directory: frontend
         run: npm install
+      - name: Testar seleção e busca de produtos
+        working-directory: frontend
+        run: npm test
       - name: Compilar
         working-directory: frontend
         env:
