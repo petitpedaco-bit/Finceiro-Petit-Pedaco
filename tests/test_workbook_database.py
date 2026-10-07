@@ -38,6 +38,8 @@ class WorkbookDatabaseTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(float(product.additional_cost),6)
                     self.assertEqual(float(product.sale_price),25)
                     self.assertEqual(product.current_stock,0)
+                    product.current_stock=7
+                    await session.commit()
                 book.sheets[0].rows[0][4].value=12
                 async with AsyncSession(bind=connection,expire_on_commit=False,join_transaction_mode='create_savepoint') as session:
                     result=await save_workbook(SaveWorkbook(id=result['id'],version=1,title='Teste isolado',book=book,
@@ -47,6 +49,22 @@ class WorkbookDatabaseTests(unittest.IsolatedAsyncioTestCase):
                     product=await session.scalar(select(Product).where(Product.sku=='__TEST_QUOTATION__'))
                     self.assertEqual(float(product.cost_price),12)
                     self.assertEqual(float(product.sale_price),25)
+                    self.assertEqual(product.current_stock,7)
+                # A new fiche in the next source version creates one product only.
+                new_sheet=book.sheets[0].model_copy(deep=True)
+                new_sheet.name='Novo produto DB'
+                book.sheets.append(new_sheet)
+                async with AsyncSession(bind=connection,expire_on_commit=False,join_transaction_mode='create_savepoint') as session:
+                    result=await save_workbook(SaveWorkbook(id=result['id'],version=2,title='Teste isolado',book=book,
+                        bindings={'Teste DB':'__TEST_QUOTATION__','Novo produto DB':'__TEST_NEW_QUOTATION__'},
+                        sync_sheets=['Teste DB','Novo produto DB']),session)
+                    self.assertEqual(result['created'],1)
+                    self.assertEqual(result['updated'],1)
+                async with AsyncSession(bind=connection,expire_on_commit=False,join_transaction_mode='create_savepoint') as session:
+                    result=await save_workbook(SaveWorkbook(id=result['id'],version=3,title='Teste isolado',book=book,
+                        bindings=result['bindings'],sync_sheets=['Teste DB','Novo produto DB']),session)
+                    self.assertEqual(result['created'],0)
+                    self.assertEqual(result['updated'],2)
                 async with AsyncSession(bind=connection,join_transaction_mode='create_savepoint') as session:
                     with self.assertRaises(HTTPException) as error:
                         await save_workbook(SaveWorkbook(id=result['id'],version=1,title='Teste isolado',book=book),session)

@@ -1,104 +1,103 @@
-import { useEffect, useState } from 'react';
-import { api, QuotationRow, SheetCell, WorkbookDocument, WorkbookResult } from './api';
+import { useEffect, useRef, useState } from 'react';
+import { api, QuotationBook, QuotationRow, WorkbookDocument, WorkbookResult } from './api';
 
-const emptyCell = (): SheetCell => ({value:null,formula:null,format:'General'});
-const letters = (column:number): string => column < 26 ? String.fromCharCode(65+column) : letters(Math.floor(column/26)-1)+String.fromCharCode(65+column%26);
-const currency = (value:string | number) => Number(value).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-function cellDisplay(cell:SheetCell):string {
-  if(cell.error) return '#REVISAR';
-  if(typeof cell.value === 'number') {
-    if(cell.format.includes('%')) return `${(cell.value*100).toLocaleString('pt-BR',{maximumFractionDigits:2})}%`;
-    return cell.value.toLocaleString('pt-BR',{maximumFractionDigits:6});
-  }
-  return String(cell.value ?? '');
-}
+const SOURCE='https://docs.google.com/spreadsheets/d/1kqfc0fzW6U-VV89_T62a-XUp1ys0rAvl/edit';
+const money=(value:string|number)=>Number(value).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 
-export default function Quotations({ refresh }: { refresh: () => Promise<void> }) {
-  const [url,setUrl] = useState('https://docs.google.com/spreadsheets/d/1kqfc0fzW6U-VV89_T62a-XUp1ys0rAvl/edit');
-  const [document,setDocument] = useState<WorkbookDocument | null>(null);
-  const [documents,setDocuments] = useState<{id:string;title:string;version:number}[]>([]);
-  const [tab,setTab] = useState(0);
-  const [busy,setBusy] = useState(false);
-  const [dirty,setDirty] = useState(false);
-  const [message,setMessage] = useState('');
-  const [warnings,setWarnings] = useState<string[]>([]);
-  const [summaries,setSummaries] = useState<QuotationRow[]>([]);
-  const [selected,setSelected] = useState<Set<string>>(new Set());
-  const [updatePrices,setUpdatePrices] = useState(false);
-  const [active,setActive] = useState<[number,number] | null>(null);
-  const [search,setSearch] = useState('');
-  const loadList = async () => setDocuments(await api.workbookList());
-  useEffect(() => { void loadList().catch(error => setMessage((error as Error).message)); },[]);
-  useEffect(() => {
-    const warn = (event: BeforeUnloadEvent) => { if(dirty) { event.preventDefault(); event.returnValue=''; } };
-    window.addEventListener('beforeunload',warn);
-    return () => window.removeEventListener('beforeunload',warn);
+export default function Quotations({refresh}:{refresh:()=>Promise<void>}) {
+  const [doc,setDoc]=useState<WorkbookDocument|null>(null);
+  const [list,setList]=useState<{id:string;title:string;version:number}[]>([]);
+  const [rows,setRows]=useState<QuotationRow[]>([]);
+  const [warnings,setWarnings]=useState<string[]>([]);
+  const [selected,setSelected]=useState<Set<string>>(new Set());
+  const [search,setSearch]=useState('');
+  const [busy,setBusy]=useState(false);
+  const [dirty,setDirty]=useState(false);
+  const [message,setMessage]=useState('');
+  const [automatic,setAutomatic]=useState(true);
+  const [prices,setPrices]=useState(false);
+  const [lastRead,setLastRead]=useState('');
+  const running=useRef(false);
+  const show=(current:WorkbookDocument,result:WorkbookResult)=>{
+    setDoc({...current,book:result.book});setRows(result.rows);setWarnings(result.warnings);
+    setSelected(new Set(result.rows.map(row=>row.sheet)));
+  };
+  const run=async(operation:()=>Promise<void>)=>{
+    if(running.current)return;
+    running.current=true;setBusy(true);setMessage('');
+    try{await operation();}catch(error){setMessage((error as Error).message);}
+    finally{running.current=false;setBusy(false);}
+  };
+  const open=async(id:string)=>{
+    const loaded=await api.workbookGet(id);
+    show(loaded,await api.workbookCalculate(loaded.book));setDirty(false);
+  };
+  useEffect(()=>{void run(async()=>{
+    const saved=await api.workbookList();setList(saved);if(saved.length)await open(saved[0].id);
+  });},[]);
+  useEffect(()=>{
+    const warn=(event:BeforeUnloadEvent)=>{if(dirty){event.preventDefault();event.returnValue='';}};
+    window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);
   },[dirty]);
-  const run = async (operation:()=>Promise<void>) => {
-    setBusy(true);setMessage('');
-    try { await operation(); } catch(error) { setMessage((error as Error).message); }
-    finally { setBusy(false); }
+  const save=async(current:WorkbookDocument,sheets:string[])=>{
+    const result=await api.workbookSave(current,sheets,prices);
+    show({...current,id:result.id,version:result.version,bindings:result.bindings},result);
+    setDirty(false);setList(await api.workbookList());await refresh();
+    setMessage(`Salvo no banco: ${result.created} produtos novos e ${result.updated} atualizados.`);
   };
-  const replaceAllowed = () => !dirty || confirm('Há alterações não salvas. Deseja substituir a planilha aberta?');
-  const calculated = (result:WorkbookResult, current:WorkbookDocument) => {
-    setDocument({...current,book:result.book});setSummaries(result.rows);setWarnings(result.warnings);
+  const importBook=async(book:QuotationBook,source:string|null,background=false)=>{
+    const result=await api.workbookCalculate(book);
+    const current:WorkbookDocument={id:doc?.id,version:doc?.version??0,title:doc?.title??'Cotações Petit Pedaço',source_url:source,book:result.book,
+      bindings:Object.fromEntries(Object.entries(doc?.bindings??{}).filter(([name])=>book.sheets.some(sheet=>sheet.name===name)))};
+    setLastRead(new Date().toLocaleTimeString('pt-BR'));
+    if(background && JSON.stringify(result.book)===JSON.stringify(doc?.book))return;
+    show(current,result);setDirty(true);
+    await save(current,result.rows.map(row=>row.sheet));
   };
-  const imported = (book:WorkbookDocument['book'], source:string|null) => {
-    setDocument({id:document?.id,version:document?.version ?? 0,title:document?.title ?? 'Cotações Petit Pedaço',
-      source_url:source,book,bindings:Object.fromEntries(Object.entries(document?.bindings ?? {}).filter(([name])=>book.sheets.some(sheet=>sheet.name===name)))});
-    setTab(0);setActive(null);setDirty(true);setSummaries([]);setWarnings([]);setSelected(new Set());
-    setMessage('Planilha lida. Revise as abas, recalcule e salve no banco.');
-  };
-  const sheet = document?.book.sheets[tab];
-  const columns = Math.max(1,...(sheet?.rows.map(row=>row.length) ?? [10]));
-  const currentSummary = summaries.find(row=>row.sheet===sheet?.name);
-  const changeCell = (row:number,column:number,text:string) => {
-    if(!document || !sheet) return;
-    const normalized = text.trim().replace(',','.');
-    const value = /^-?\d+(\.\d+)?%$/.test(normalized) ? Number(normalized.slice(0,-1))/100 : /^-?\d+(\.\d+)?$/.test(normalized) ? Number(normalized) : text || null;
-    const next = document.book.sheets.map((s,index)=>index!==tab?s:{...s,rows:s.rows.map((r,ri)=>ri!==row?r:Array.from({length:columns},(_,ci)=>ci!==column?r[ci] ?? emptyCell():{...r[ci] ?? emptyCell(),formula:text.startsWith('=')?text:null,value:text.startsWith('=')?r[ci]?.value ?? null:value,error:null}))});
-    setDocument({...document,book:{sheets:next}});setDirty(true);setSummaries([]);
-  };
-  const activeCell = active && sheet?.rows[active[0]]?.[active[1]];
+  useEffect(()=>{
+    if(!automatic || !doc?.source_url || dirty)return;
+    const timer=window.setInterval(()=>{
+      if(window.document.visibilityState!=='visible' || running.current)return;
+      void run(async()=>{const source=doc.source_url!;await importBook((await api.workbookGoogle(source)).book,source,true);});
+    },60_000);
+    return()=>window.clearInterval(timer);
+  },[automatic,doc,dirty,prices]);
+  const replaceAllowed=()=>!dirty || confirm('Há alterações de SKU não salvas. Deseja substituir?');
+  const visible=rows.filter(row=>`${row.name} ${doc?.bindings[row.sheet]??row.sku}`.toLowerCase().includes(search.toLowerCase()));
+  const allVisible=visible.length>0 && visible.every(row=>selected.has(row.sheet));
   return <div className="quotation-page">
     <section className="card quotation-tools">
-      <div className="card-title"><h2>Cotação de produtos</h2><span>{dirty?'Alterações não salvas':'Banco de dados'}</span></div>
-      <div className="form-grid"><label>Planilhas salvas<select disabled={busy} value={document?.id ?? ''} onChange={e=> {
-        const id=e.target.value;if(!id || !replaceAllowed()) return;
-        void run(async()=>{const loaded=await api.workbookGet(id);setDocument(loaded);setUrl(loaded.source_url ?? url);setTab(0);setActive(null);setDirty(false);setSummaries([]);setWarnings([]);setSelected(new Set(Object.keys(loaded.bindings)));});
-      }}><option value="">Selecione uma cotação</option>{documents.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-      <label>Link público Google Sheets<input disabled={busy} value={url} onChange={e=>setUrl(e.target.value)}/></label></div>
+      <div className="card-title"><h2>Cotação de produtos</h2><span>{dirty?'Alterações não salvas':`${rows.length} fichas reconhecidas`}</span></div>
+      <p>Custos e preços sugeridos das fichas importadas, vinculados aos produtos pelo SKU. Novos produtos começam com estoque zero.</p>
       <div className="quotation-actions">
-        <button className="primary" disabled={busy} onClick={()=>{if(replaceAllowed()) void run(async()=>imported((await api.workbookGoogle(url)).book,url));}}>Ler planilha do Google</button>
-        <label className="upload-label">Enviar Excel<input disabled={busy} type="file" accept=".xlsx" onChange={e=>{const file=e.target.files?.[0];if(file && replaceAllowed()) void run(async()=>imported((await api.workbookExcel(file)).book,null));e.target.value='';}}/></label>
-        <button disabled={busy} onClick={()=>{if(replaceAllowed()){setDocument({version:0,title:'Nova cotação',source_url:null,book:{sheets:[{name:'Nova ficha',rows:Array.from({length:12},()=>Array.from({length:10},emptyCell))}]},bindings:{}});setTab(0);setDirty(true);setSummaries([]);setSelected(new Set());setActive(null);}}}>Nova cotação</button>
-        <button disabled={busy || !document} onClick={()=>void run(async()=>{if(document){calculated(await api.workbookCalculate(document.book),document);setDirty(true);}})}>Recalcular custos</button>
-        <button className="primary" disabled={busy || !document} onClick={()=>void run(async()=> {
-          if(!document) return;
-          const result=await api.workbookSave(document,Array.from(selected),updatePrices);
-          calculated(result,{...document,id:result.id,version:result.version,bindings:result.bindings});setDirty(false);setSelected(new Set(Object.keys(result.bindings)));
-          await loadList();await refresh();setMessage(`Salvo no banco. ${result.created} produtos criados; ${result.updated} atualizados.`);
-        })}>Salvar atualizações no banco</button>
+        <button disabled={busy} onClick={()=>{if(replaceAllowed())void run(async()=>{const source=doc?.source_url??SOURCE;await importBook((await api.workbookGoogle(source)).book,source);});}}>Atualizar do Google Sheets</button>
+        <label className="upload-label">Importar Excel<input disabled={busy} type="file" accept=".xlsx" onChange={event=>{const file=event.target.files?.[0];event.target.value='';if(file && replaceAllowed())void run(async()=>importBook((await api.workbookExcel(file)).book,null));}}/></label>
+        <button disabled={busy} onClick={()=>{const source=prompt('Endereço público da nova planilha Google Sheets:',doc?.source_url??SOURCE);if(source && replaceAllowed())void run(async()=>importBook((await api.workbookGoogle(source)).book,source));}}>Trocar fonte de importação</button>
+        <button className="primary" disabled={busy || !doc} onClick={()=>void run(async()=>{if(doc)await save(doc,Array.from(selected));})}>Salvar atualizações no banco</button>
       </div>
-      {busy && <p role="status">Processando a planilha…</p>}{message && <p role="status">{message}</p>}
-      {document && <label>Título da cotação<input value={document.title} maxLength={160} disabled={busy} onChange={e=>{setDocument({...document,title:e.target.value});setDirty(true);}}/></label>}
-      {warnings.length>0 && <details><summary>{warnings.length} avisos de cálculo / fichas para revisar</summary>{warnings.map((warning,index)=><p key={index}>{warning}</p>)}</details>}
-      {selected.size>0 && <details><summary>{selected.size} produtos atualizarão custos ao salvar</summary>{Array.from(selected).map(name=><label key={name}><input type="checkbox" style={{display:'inline',width:'auto'}} checked onChange={()=>setSelected(current=>{const next=new Set(current);next.delete(name);return next;})}/> {name}</label>)}</details>}
+      {list.length>1 && <label>Cotação salva<select disabled={busy} value={doc?.id??''} onChange={event=>{const id=event.target.value;if(id && replaceAllowed())void run(()=>open(id));}}>{list.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select></label>}
+      <label><input type="checkbox" style={{width:'auto',display:'inline'}} checked={automatic} onChange={event=>setAutomatic(event.target.checked)}/> Atualizar do Google automaticamente a cada minuto enquanto o sistema estiver aberto</label>
+      {dirty && <p>Atualização automática pausada até salvar as alterações de SKU.</p>}
+      {doc && !doc.source_url && <p>Fonte Excel: envie uma nova versão para atualizar os produtos.</p>}
+      <label><input type="checkbox" style={{width:'auto',display:'inline'}} checked={prices} onChange={event=>setPrices(event.target.checked)}/> Atualizar também o preço de venda ao importar ou salvar</label>
+      {lastRead && <p>Última leitura: {lastRead}</p>}
+      {busy && <p role="status">Lendo e salvando a cotação… A primeira leitura na nuvem pode levar alguns minutos.</p>}
+      {message && <p role="status">{message}</p>}
+      {warnings.length>0 && <details><summary>Fichas e cálculos para revisão ({warnings.length} avisos)</summary>{warnings.map((warning,index)=><p key={index}>{warning}</p>)}</details>}
     </section>
-    {sheet && document && <section className="card quotation-editor">
-      <div className="quotation-tabs"><input placeholder="Buscar aba…" value={search} onChange={e=>setSearch(e.target.value)}/><select value={tab} onChange={e=>{setTab(Number(e.target.value));setActive(null);}}>{document.book.sheets.map((s,index)=>s.name.toLowerCase().includes(search.toLowerCase())?<option key={s.name} value={index}>{s.name}</option>:null)}</select><span>{sheet.rows.length} linhas · {columns} colunas</span></div>
-      <div className="formula-bar"><b>{active?`${letters(active[1])}${active[0]+1}`:'Célula'}</b><input disabled={busy || !active} aria-label="Valor ou fórmula da célula" placeholder="Selecione uma célula para editar seu valor ou fórmula" value={activeCell ? activeCell.formula ?? String(activeCell.value ?? '') : ''} onChange={e=>active && changeCell(active[0],active[1],e.target.value)}/></div>
-      <div className="sheet-scroll"><table className="sheet-grid"><thead><tr><th></th>{Array.from({length:columns},(_,index)=><th key={index}>{letters(index)}</th>)}</tr></thead><tbody>{sheet.rows.map((row,rowIndex)=><tr key={rowIndex}><th>{rowIndex+1}</th>{Array.from({length:columns},(_,columnIndex)=>{const cell=row[columnIndex] ?? emptyCell();return <td key={columnIndex} className={`${cell.formula?'computed':''} ${cell.error?'cell-error':''} ${active?.[0]===rowIndex && active?.[1]===columnIndex?'cell-active':''}`} title={cell.error || cell.formula || ''}><button disabled={busy} onClick={()=>setActive([rowIndex,columnIndex])}>{cellDisplay(cell)}</button></td>;})}</tr>)}</tbody></table></div>
-      <div className="quotation-actions"><button disabled={busy || sheet.rows.length>=2000} onClick={()=>{setDocument({...document,book:{sheets:document.book.sheets.map((s,i)=>i===tab?{...s,rows:[...s.rows,Array.from({length:columns},emptyCell)]}:s)}});setDirty(true);}}>+ Linha</button>
-      <button disabled={busy || columns>=100} onClick={()=>{setDocument({...document,book:{sheets:document.book.sheets.map((s,i)=>i===tab?{...s,rows:s.rows.map(r=>[...r,...Array.from({length:columns-r.length+1},emptyCell)])}:s)}});setDirty(true);}}>+ Coluna</button>
-      <button disabled={busy} onClick={()=>{const name=prompt('Nome da nova aba');if(name && !document.book.sheets.some(s=>s.name===name)){setDocument({...document,book:{sheets:[...document.book.sheets,{name,rows:Array.from({length:12},()=>Array.from({length:10},emptyCell))}]}});setTab(document.book.sheets.length);setDirty(true);setActive(null);}}}>+ Aba</button></div>
-      <p>Selecione uma célula e edite na barra acima. Fórmulas e valores são recalculados ao salvar. Alterações ficam no sistema; a planilha do Google permanece como fonte de importação.</p>
-      {currentSummary && <div className="quotation-summary"><p>Matéria-prima: <b>{currency(currentSummary.cost_price)}</b> · Custos adicionais: <b>{currency(currentSummary.additional_cost)}</b> · Preço sugerido: <b>{currency(currentSummary.sale_price)}</b></p>
-        <label>SKU do produto vinculado<input disabled={busy} value={document.bindings[sheet.name] ?? currentSummary.sku} maxLength={64} onChange={e=>{setDocument({...document,bindings:{...document.bindings,[sheet.name]:e.target.value}});setDirty(true);}}/></label>
-        <label><input style={{display:'inline',width:'auto'}} type="checkbox" checked={selected.has(sheet.name)} onChange={()=>setSelected(current=>{const next=new Set(current);next.has(sheet.name)?next.delete(sheet.name):next.add(sheet.name);return next;})}/> Atualizar o custo deste produto ao salvar</label>
-      </div>}
-      <label><input style={{display:'inline',width:'auto'}} type="checkbox" checked={updatePrices} onChange={e=>setUpdatePrices(e.target.checked)}/> Atualizar também o preço de venda dos produtos selecionados</label>
-      <p>{selected.size} produtos selecionados para atualização. Use “Recalcular custos” para identificar as fichas de produto.</p>
-    </section>}
+    <section className="card">
+      <div className="card-title"><h2>Fichas de produtos</h2><span>{selected.size} selecionados</span></div>
+      <input aria-label="Buscar produto ou SKU" placeholder="Buscar produto ou SKU…" value={search} onChange={event=>setSearch(event.target.value)}/>
+      <div className="sheet-scroll"><table><thead><tr>
+        <th><input aria-label="Selecionar produtos visíveis" type="checkbox" checked={allVisible} disabled={busy || !visible.length} onChange={()=>setSelected(current=>{const next=new Set(current);visible.forEach(row=>allVisible?next.delete(row.sheet):next.add(row.sheet));return next;})}/></th>
+        <th>Ficha / produto</th><th>SKU vinculado</th><th>Matéria-prima</th><th>Custos adicionais</th><th>Custo total</th><th>Preço sugerido</th><th>Lucro estimado*</th>
+      </tr></thead><tbody>{visible.map(row=><tr key={row.sheet}>
+        <td><input aria-label={`Selecionar ${row.name}`} disabled={busy} type="checkbox" checked={selected.has(row.sheet)} onChange={()=>setSelected(current=>{const next=new Set(current);next.has(row.sheet)?next.delete(row.sheet):next.add(row.sheet);return next;})}/></td>
+        <td>{row.name}</td><td><input aria-label={`SKU de ${row.name}`} disabled={busy} maxLength={64} value={doc?.bindings[row.sheet]??row.sku} onChange={event=>{if(doc){setDoc({...doc,bindings:{...doc.bindings,[row.sheet]:event.target.value}});setDirty(true);}}}/></td>
+        <td>{money(row.cost_price)}</td><td>{money(row.additional_cost)}</td><td>{money(Number(row.cost_price)+Number(row.additional_cost))}</td><td>{money(row.sale_price)}</td><td>{money(Number(row.sale_price)-Number(row.cost_price)-Number(row.additional_cost))}</td>
+      </tr>)}</tbody></table></div>
+      {!rows.length && <p>Importe a cotação do Google Sheets ou um arquivo Excel para carregar as fichas.</p>}
+      <p>* Lucro estimado no preço sugerido, antes das taxas de pagamento. A importação não altera o estoque nem os custos das vendas anteriores. A leitura salva todos os produtos válidos; a seleção controla o salvamento manual.</p>
+    </section>
   </div>;
 }

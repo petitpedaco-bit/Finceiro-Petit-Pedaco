@@ -21,23 +21,29 @@ ambiente local. Para produção, use migrations Alembic versionadas.
 
 ### Cotações vinculadas a produtos
 
-A aba **Cotações** permite ler o Google público ou importar Excel, navegar
-pelas abas e editar células na barra de valores/fórmulas. A grade preserva
-as posições das células e as fórmulas, incluindo as compartilhadas do Excel.
-Use **Recalcular custos** para revisar resultados; marque as fichas de produtos
-que deseja sincronizar pelo SKU e clique em **Salvar atualizações no banco**.
+A aba **Cotações** apresenta uma tabela de fichas, SKU vinculado, matéria-prima,
+custos adicionais, custo total, preço sugerido e lucro estimado antes das taxas.
+Não há campo permanente de link nem grade de células. Use **Atualizar do Google
+Sheets** para ler a fonte configurada, **Trocar fonte de importação** para mudar
+essa fonte, ou **Importar Excel** para enviar um arquivo. A leitura recalcula e
+salva todos os produtos válidos; fichas com erros ficam nos avisos de revisão.
+O SKU pode ser editado e o botão **Salvar atualizações no banco** aplica os
+vínculos e custos das fichas selecionadas. A atualização automática consulta
+o Google a cada minuto enquanto a página está aberta e visível, sem requisições
+simultâneas. Ela pausa com alterações de SKU não salvas. Não é uma sincronização
+instantânea nem um serviço em segundo plano: o plano gratuito pode atrasar a
+leitura. Arquivos Excel precisam ser reenviados quando forem alterados.
 A cotação é persistida no PostgreSQL e pode ser reaberta na lista de planilhas.
 O controle de versão impede sobrescrever uma edição feita por outra sessão.
 
 O motor calcula operações aritméticas, percentuais, SUM, VLOOKUP exato,
 MIN, MAX e ROUND. Fórmulas com erro, referência circular ou funções não
 suportadas exibem avisos e resultados vazios. Fichas sem custo ou preço
-válidos não podem sincronizar produtos. O editor não reproduz gráficos,
+válidos não podem sincronizar produtos. A tabela não reproduz gráficos,
 imagens ou toda a formatação visual do Excel. As alterações são salvas no
 sistema; não são enviadas de volta ao Google Sheets.
 
-Na tela Produtos, use "Cotações da planilha" para ler o Google Sheets público
-ou enviar um Excel `.xlsx`. Revise as fichas reconhecidas e selecione quais aplicar.
+Na aba Cotações, importe o Google Sheets público ou um Excel `.xlsx`.
 Informe o SKU de um produto existente para atualizá-lo. O SKU sugerido vincula
 uma nova ficha por nome de aba; mantenha-o em sincronizações posteriores.
 Se a aba for renomeada, informe novamente o SKU do produto existente.
