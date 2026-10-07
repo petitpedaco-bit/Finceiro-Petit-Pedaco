@@ -1,8 +1,11 @@
 import type { ABCResponse, CashFlow, DRE, Product, ProductInput, SaleSummary } from "./types";
 
-const API = "/api";
+const API = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  if (import.meta.env.MODE === "github-pages" && !import.meta.env.VITE_API_URL) {
+    throw new Error("A interface foi publicada. Falta configurar o endereço da API na nuvem (VITE_API_URL).");
+  }
   const response = await fetch(`${API}${path}`, {
     headers: { "Content-Type": "application/json", ...options?.headers },
     ...options,
