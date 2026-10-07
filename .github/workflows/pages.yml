@@ -25,7 +25,7 @@ jobs:
       - name: Compilar
         working-directory: frontend
         env:
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://petit-pedaco-api.onrender.com' }}
         run: npm run build -- --mode github-pages
       - uses: actions/upload-pages-artifact@v4
         with:
