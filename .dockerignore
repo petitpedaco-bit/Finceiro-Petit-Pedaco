@@ -6,3 +6,5 @@ __pycache__/
 .env
 .env.*
 Untitled-1.ipynb
+*.xlsx
+*.xls

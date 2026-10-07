@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "./api";
+import Quotations from "./Quotations";
 import type { ABCResponse, CashFlow, DRE, PaymentMethod, Product } from "./types";
 
 type Screen = "dashboard" | "products" | "sales" | "expenses" | "reports";
@@ -71,7 +72,7 @@ function Empty({ text }: { text: string }) { return <p className="empty">{text}<
 function Products({ products, refresh, notify, fail }: { products: Product[]; refresh: () => Promise<void>; notify: (m: string) => void; fail: (m: string) => void }) {
   const [editing, setEditing] = useState<Product | null | undefined>(undefined);
   const remove = async (product: Product) => { if (!confirm(`Excluir ${product.name}?`)) return; try { await api.deleteProduct(product.id); await refresh(); notify("Produto excluído."); } catch (err) { fail((err as Error).message); } };
-  return <><div className="toolbar"><p className="subtitle">{products.length} produto(s) cadastrado(s).</p><button className="primary" onClick={() => setEditing(null)}>+ Novo produto</button></div>
+  return <><Quotations refresh={refresh}/><div className="toolbar"><p className="subtitle">{products.length} produto(s) cadastrado(s).</p><button className="primary" onClick={() => setEditing(null)}>+ Novo produto</button></div>
     <div className="card table-wrap"><table><thead><tr><th>Produto</th><th>SKU</th><th>Preço de custo</th><th>Preço de venda</th><th>Estoque</th><th></th></tr></thead><tbody>{products.map(product => <tr key={product.id}><td><b>{product.name}</b></td><td><code>{product.sku}</code></td><td>{money(product.cost_price)}</td><td>{money(product.sale_price)}</td><td><span className={product.current_stock === 0 ? "stock zero" : "stock"}>{product.current_stock} un.</span></td><td className="actions"><button onClick={() => setEditing(product)}>Editar</button><button className="danger-text" onClick={() => void remove(product)}>Excluir</button></td></tr>)}</tbody></table>{!products.length && <Empty text="Cadastre o primeiro produto para começar a vender."/>}</div>
     {editing !== undefined && <ProductModal product={editing} close={() => setEditing(undefined)} refresh={refresh} notify={notify} fail={fail}/>}</>;
 }

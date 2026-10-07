@@ -19,6 +19,26 @@ ambiente local. Para produção, use migrations Alembic versionadas.
 
 ## Fluxo de uso
 
+### Cotações vinculadas a produtos
+
+Na tela Produtos, use "Cotações da planilha" para ler o Google Sheets público
+ou enviar um Excel `.xlsx`. Revise as fichas reconhecidas e selecione quais aplicar.
+Informe o SKU de um produto existente para atualizá-lo. O SKU sugerido vincula
+uma nova ficha por nome de aba; mantenha-o em sincronizações posteriores.
+Se a aba for renomeada, informe novamente o SKU do produto existente.
+
+O custo importado separa matéria-prima de custos fixos, embalagem e variáveis.
+Taxas de cartão da planilha são excluídas do custo. O preço sugerido vem do
+valor de venda sem taxa de cartão. Produtos novos têm estoque zero e os
+existentes preservam estoque e preço, salvo seleção explícita para atualizar preços.
+As vendas já realizadas preservam os custos gravados no checkout.
+
+O leitor usa resultados calculados salvos no arquivo. Recalcule e salve no
+Excel/Google Sheets antes da exportação. Abas sem ficha de custo, como índice,
+fornecedores e tabelas de revenda, não geram produtos; valores incompletos
+são mostrados como avisos. A atualização é manual pelo botão de leitura.
+Para o GitHub Pages, configure a API remota antes de usar a importação.
+
 1. Cadastre produtos em `POST /products`.
 2. Registre vendas em `POST /sales/checkout`; estoque e entrada de caixa são
    gravados atomicamente.
