@@ -21,16 +21,27 @@ ambiente local. Para produção, use migrations Alembic versionadas.
 
 ### Cotações vinculadas a produtos
 
-A aba **Cotações** apresenta uma tabela de fichas, SKU vinculado, matéria-prima,
-custos adicionais, custo total, preço sugerido e lucro estimado antes das taxas.
+Em **Produtos → Novo produto/Editar**, busque uma ficha salva por SKU ou nome.
+Selecione **Usar cotação** para preencher nome, SKU, matéria-prima e custos
+adicionais. Produtos novos recebem o preço sugerido; um SKU já cadastrado abre
+o produto existente para atualização, preservando preço e estoque. O botão
+**Usar preço sugerido** permite mudar o preço explicitamente. O SKU da ficha
+selecionada fica protegido para manter o vínculo nas sincronizações futuras.
+A busca ignora acentos e caixa, prioriza a versão mais recente de cada SKU e
+não consulta o Google. Fichas inválidas não aparecem nos resultados.
+
+A aba **Produtos** mantém o cadastro, a lista e o botão **Novo produto**, e
+reúne o painel **Cotação de produtos** abaixo da lista. Não há mais uma aba
+Cotações separada nem uma segunda tabela de produtos. O painel conserva
+importação Excel/Google, sincronização, avisos de revisão e salvamento no banco.
 Não há campo permanente de link nem grade de células. Use **Atualizar do Google
 Sheets** para ler a fonte configurada, **Trocar fonte de importação** para mudar
 essa fonte, ou **Importar Excel** para enviar um arquivo. A leitura recalcula e
 salva todos os produtos válidos; fichas com erros ficam nos avisos de revisão.
-O SKU pode ser editado e o botão **Salvar atualizações no banco** aplica os
-vínculos e custos das fichas selecionadas. A atualização automática consulta
+O botão **Salvar atualizações no banco** aplica os custos de todas as fichas
+válidas. O cadastro busca essas fichas por nome ou SKU. A atualização automática consulta
 o Google a cada minuto enquanto a página está aberta e visível, sem requisições
-simultâneas. Ela pausa com alterações de SKU não salvas. Não é uma sincronização
+simultâneas. Ela pausa com importações não salvas. Não é uma sincronização
 instantânea nem um serviço em segundo plano: o plano gratuito pode atrasar a
 leitura. Arquivos Excel precisam ser reenviados quando forem alterados.
 A cotação é persistida no PostgreSQL e pode ser reaberta na lista de planilhas.
@@ -43,7 +54,7 @@ válidos não podem sincronizar produtos. A tabela não reproduz gráficos,
 imagens ou toda a formatação visual do Excel. As alterações são salvas no
 sistema; não são enviadas de volta ao Google Sheets.
 
-Na aba Cotações, importe o Google Sheets público ou um Excel `.xlsx`.
+No painel Cotação de produtos da aba Produtos, importe o Google público ou Excel `.xlsx`.
 Informe o SKU de um produto existente para atualizá-lo. O SKU sugerido vincula
 uma nova ficha por nome de aba; mantenha-o em sincronizações posteriores.
 Se a aba for renomeada, informe novamente o SKU do produto existente.

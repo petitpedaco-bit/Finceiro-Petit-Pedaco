@@ -2,7 +2,7 @@ import re
 import uuid
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +13,8 @@ from app.models import Product, QuotationWorkbook
 from app.services.google_sheet_service import download_google_sheet
 from app.services.workbook_service import QuotationBook, WorkbookCalculator, read_workbook, workbook_quotations
 from app.services.quotation_service import QuotationRow, read_quotations
+from app.services.quotation_catalog import search_catalog
+from app.schemas import ProductResponse
 
 router = APIRouter(prefix='/quotations', tags=['Cotações'])
 
@@ -83,6 +85,23 @@ class SaveWorkbook(BaseModel):
     bindings: dict[str, str] = Field(default_factory=dict, max_length=250)
     sync_sheets: list[str] = Field(default_factory=list, max_length=250)
     update_sale_prices: bool = False
+
+
+@router.get('/products')
+async def quotation_products(search: str = Query(default='', max_length=160),
+                             session: AsyncSession = Depends(get_session)) -> list[dict]:
+    documents = (await session.scalars(select(QuotationWorkbook)
+        .order_by(QuotationWorkbook.updated_at.desc(), QuotationWorkbook.id.desc()))).all()
+    rows = await run_in_threadpool(search_catalog, [
+        {'id': document.id, 'title': document.title, 'data': document.data,
+         'bindings': document.bindings} for document in documents], search)
+    if not rows:
+        return []
+    products = (await session.scalars(select(Product).where(
+        Product.sku.in_([row['sku'] for row in rows])))).all()
+    by_sku = {product.sku: ProductResponse.model_validate(product).model_dump(mode='json')
+              for product in products}
+    return [{**row, 'product': by_sku.get(row['sku'])} for row in rows]
 
 
 @router.post('/workbook/calculate')

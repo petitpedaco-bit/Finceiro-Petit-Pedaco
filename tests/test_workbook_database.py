@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 from app.database import engine
 from app.models import Base, Product, QuotationWorkbook
-from app.routers.quotations import SaveWorkbook, save_workbook
+from app.routers.quotations import SaveWorkbook, quotation_products, save_workbook
 from app.services.workbook_service import QuotationBook
 
 
@@ -40,6 +40,13 @@ class WorkbookDatabaseTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(product.current_stock,0)
                     product.current_stock=7
                     await session.commit()
+                async with AsyncSession(bind=connection,join_transaction_mode='create_savepoint') as session:
+                    matches=await quotation_products(search='__TEST_QUOTATION__',session=session)
+                    self.assertEqual(len(matches),1)
+                    self.assertTrue(matches[0]['product']['id'])
+                    self.assertEqual(matches[0]['product']['sku'],'__TEST_QUOTATION__')
+                    self.assertEqual(matches[0]['product']['current_stock'],7)
+                    self.assertEqual(matches[0]['product']['additional_cost'],'6.00')
                 book.sheets[0].rows[0][4].value=12
                 async with AsyncSession(bind=connection,expire_on_commit=False,join_transaction_mode='create_savepoint') as session:
                     result=await save_workbook(SaveWorkbook(id=result['id'],version=1,title='Teste isolado',book=book,

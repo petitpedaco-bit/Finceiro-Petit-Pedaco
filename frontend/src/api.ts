@@ -7,6 +7,7 @@ export interface QuotationRow {
   additional_cost: string; sale_price: string; target_margin_percentage: string;
 }
 export interface QuotationPreview { rows: QuotationRow[]; warnings: string[]; notice: string }
+export interface QuotationProduct extends QuotationRow { document_id:string; document_title:string; product:Product|null }
 export interface SheetCell { value: string | number | boolean | null; formula?: string | null; format: string; error?: string | null }
 export interface QuotationBook { sheets: {name: string; rows: SheetCell[][]}[] }
 export interface WorkbookDocument { id?: string; version: number; title: string; source_url: string | null; book: QuotationBook; bindings: Record<string,string> }
@@ -28,6 +29,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  quotationProducts: (search:string,signal?:AbortSignal) => request<QuotationProduct[]>(`/quotations/products?search=${encodeURIComponent(search)}`,{signal}),
   products: () => request<Product[]>("/products"),
   createProduct: (data: ProductInput) => request<Product>("/products", { method: "POST", body: JSON.stringify(data) }),
   updateProduct: (id: string, data: Partial<ProductInput>) => request<Product>(`/products/${id}`, { method: "PATCH", body: JSON.stringify(data) }),

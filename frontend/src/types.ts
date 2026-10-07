@@ -5,6 +5,8 @@ export interface Product {
   name: string;
   sku: string;
   cost_price: string;
+  additional_cost: string;
+  target_margin_percentage: string;
   sale_price: string;
   current_stock: number;
 }
@@ -13,6 +15,8 @@ export interface ProductInput {
   name: string;
   sku: string;
   cost_price: number | string;
+  additional_cost?: number | string;
+  target_margin_percentage?: number | string;
   sale_price: number | string;
   current_stock: number;
 }

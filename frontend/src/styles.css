@@ -7,6 +7,17 @@
 .quotation-actions button:not(.primary) { padding:10px 14px; border:1px solid #d9dfda; background:#faf8f4; border-radius:7px; color:#651d38; }
 .quotation-actions button:disabled { opacity:.5; cursor:wait; }
 .quotation-tools { margin-bottom:20px; }
+.products-quotation-section { margin-top:24px; }
+.product-modal { width:min(640px,100%); max-height:90vh; overflow:auto; }
+.product-modal fieldset { border:0; padding:0; margin:0; min-width:0; }
+.product-quotation-picker { background:#f9f2f5; padding:12px; border-radius:8px; margin-bottom:18px; }
+.product-quotation-picker p { font-size:12px; line-height:1.5; }
+.quotation-matches { max-height:160px; overflow:auto; display:grid; gap:6px; }
+.quotation-matches button { display:flex; justify-content:space-between; gap:12px; text-align:left; padding:9px; border:1px solid #e5d9df; border-radius:6px; background:#fff; color:#18342d; }
+.quotation-matches button:hover { border-color:#873550; }
+.quotation-matches small { display:block; font-size:11px; margin-top:4px; color:#687c74; }
+.quotation-matches span:last-child { text-align:right; flex-shrink:0; }
+.quotation-chosen button { display:block; margin-top:8px; border:1px solid #873550; color:#651d38; padding:7px; border-radius:6px; background:#fff; }
 .quotation-page .sheet-scroll { margin-top:16px; }
 .quotation-page .sheet-scroll th { position:sticky; top:0; background:#f3e5e9; color:#651d38; z-index:1; }
 .quotation-page .sheet-scroll input[type="checkbox"] { width:auto; margin:0; accent-color:#651d38; }

@@ -1,9 +1,10 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "./api";
 import Quotations from "./Quotations";
+import ProductModal from "./ProductModal";
 import type { ABCResponse, CashFlow, DRE, PaymentMethod, Product } from "./types";
 
-type Screen = "dashboard" | "products" | "quotations" | "sales" | "expenses" | "reports";
+type Screen = "dashboard" | "products" | "sales" | "expenses" | "reports";
 const today = new Date().toISOString().slice(0, 10);
 const firstDay = `${today.slice(0, 8)}01`;
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -37,8 +38,7 @@ function App() {
 
   const content = {
     dashboard: <Dashboard dre={dre} cash={cash} abc={abc} period={period} />,
-    products: <Products products={products} refresh={loadProducts} notify={notify} fail={fail} />,
-    quotations: null,
+    products: null,
     sales: <Sales products={products} refresh={async () => { await loadProducts(); await loadReports(); }} notify={notify} fail={fail} />,
     expenses: <Expenses refresh={loadReports} notify={notify} fail={fail} />,
     reports: <Reports period={period} setPeriod={setPeriod} dre={dre} cash={cash} abc={abc} />,
@@ -46,14 +46,17 @@ function App() {
 
   return <div className="shell">
     <aside className="sidebar"><div className="brand"><span>PP</span><div>Petit Pedaço<small>Gestão inteligente</small></div></div>
-      <nav>{([ ["dashboard", "⌂", "Visão geral"], ["products", "▣", "Produtos"], ["quotations", "▦", "Cotações"], ["sales", "◉", "Nova venda"], ["expenses", "−", "Despesas"], ["reports", "▤", "Relatórios"] ] as [Screen, string, string][]).map(([id, icon, label]) =>
+      <nav>{([ ["dashboard", "⌂", "Visão geral"], ["products", "▣", "Produtos"], ["sales", "◉", "Nova venda"], ["expenses", "−", "Despesas"], ["reports", "▤", "Relatórios"] ] as [Screen, string, string][]).map(([id, icon, label]) =>
         <button key={id} className={screen === id ? "active" : ""} onClick={() => setScreen(id)}><i>{icon}</i>{label}</button>)}</nav>
       <div className="sidebar-footer">API Financeira<br/><small>v1.0</small></div>
     </aside>
-    <main><header><div><p className="eyebrow">CONTROLE FINANCEIRO</p><h1>{({ dashboard: "Visão geral", products: "Produtos", quotations: "Cotações de produtos", sales: "Ponto de venda", expenses: "Lançar despesa", reports: "Relatórios" } as Record<Screen, string>)[screen]}</h1></div><div className="date">{new Intl.DateTimeFormat("pt-BR", { dateStyle: "full" }).format(new Date())}</div></header>
+    <main><header><div><p className="eyebrow">CONTROLE FINANCEIRO</p><h1>{({ dashboard: "Visão geral", products: "Produtos", sales: "Ponto de venda", expenses: "Lançar despesa", reports: "Relatórios" } as Record<Screen, string>)[screen]}</h1></div><div className="date">{new Intl.DateTimeFormat("pt-BR", { dateStyle: "full" }).format(new Date())}</div></header>
       {notice && <div className="alert success">✓ {notice}</div>}{error && <div className="alert error">! {error}</div>}
       {content}
-      <div hidden={screen !== 'quotations'}><Quotations refresh={loadProducts} /></div>
+      <div hidden={screen !== 'products'}>
+        <Products products={products} refresh={loadProducts} notify={notify} fail={fail} />
+        <div className="products-quotation-section"><Quotations refresh={loadProducts} /></div>
+      </div>
     </main>
   </div>;
 }
@@ -77,12 +80,6 @@ function Products({ products, refresh, notify, fail }: { products: Product[]; re
   return <><div className="toolbar"><p className="subtitle">{products.length} produto(s) cadastrado(s).</p><button className="primary" onClick={() => setEditing(null)}>+ Novo produto</button></div>
     <div className="card table-wrap"><table><thead><tr><th>Produto</th><th>SKU</th><th>Preço de custo</th><th>Preço de venda</th><th>Estoque</th><th></th></tr></thead><tbody>{products.map(product => <tr key={product.id}><td><b>{product.name}</b></td><td><code>{product.sku}</code></td><td>{money(product.cost_price)}</td><td>{money(product.sale_price)}</td><td><span className={product.current_stock === 0 ? "stock zero" : "stock"}>{product.current_stock} un.</span></td><td className="actions"><button onClick={() => setEditing(product)}>Editar</button><button className="danger-text" onClick={() => void remove(product)}>Excluir</button></td></tr>)}</tbody></table>{!products.length && <Empty text="Cadastre o primeiro produto para começar a vender."/>}</div>
     {editing !== undefined && <ProductModal product={editing} close={() => setEditing(undefined)} refresh={refresh} notify={notify} fail={fail}/>}</>;
-}
-
-function ProductModal({ product, close, refresh, notify, fail }: { product: Product | null; close: () => void; refresh: () => Promise<void>; notify: (m: string) => void; fail: (m: string) => void }) {
-  const [form, setForm] = useState({ name: product?.name ?? "", sku: product?.sku ?? "", cost_price: product?.cost_price ?? "", sale_price: product?.sale_price ?? "", current_stock: String(product?.current_stock ?? 0) });
-  const submit = async (event: FormEvent) => { event.preventDefault(); const data = { ...form, cost_price: Number(form.cost_price), sale_price: Number(form.sale_price), current_stock: Number(form.current_stock) }; try { product ? await api.updateProduct(product.id, data) : await api.createProduct(data); await refresh(); notify(product ? "Produto atualizado." : "Produto cadastrado."); close(); } catch (err) { fail((err as Error).message); } };
-  return <div className="modal-backdrop"><form className="modal" onSubmit={submit}><div className="modal-header"><h2>{product ? "Editar produto" : "Novo produto"}</h2><button type="button" onClick={close}>×</button></div><label>Nome<input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}/></label><label>SKU<input required value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })}/></label><div className="form-grid"><label>Preço de custo<input required min="0" step="0.01" type="number" value={form.cost_price} onChange={e => setForm({ ...form, cost_price: e.target.value })}/></label><label>Preço de venda<input required min="0" step="0.01" type="number" value={form.sale_price} onChange={e => setForm({ ...form, sale_price: e.target.value })}/></label></div><label>Estoque atual<input required min="0" type="number" value={form.current_stock} onChange={e => setForm({ ...form, current_stock: e.target.value })}/></label><div className="modal-footer"><button type="button" onClick={close}>Cancelar</button><button className="primary" type="submit">Salvar produto</button></div></form></div>;
 }
 
 function Sales({ products, refresh, notify, fail }: { products: Product[]; refresh: () => Promise<void>; notify: (m: string) => void; fail: (m: string) => void }) {
