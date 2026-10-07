@@ -2,6 +2,27 @@
 
 :root { font-family: "DM Sans", Arial, sans-serif; color: #18342d; background: #f6f4ee; font-synthesis: none; }
 * { box-sizing: border-box; } body { margin: 0; min-width: 320px; } button, input, select { font: inherit; } button { cursor: pointer; }
+.quotation-page label { display:block; font-size:13px; margin:12px 0; }
+.quotation-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:15px 0; }
+.quotation-actions button:not(.primary) { padding:10px 14px; border:1px solid #d9dfda; background:#faf8f4; border-radius:7px; color:#651d38; }
+.quotation-actions button:disabled { opacity:.5; cursor:wait; }
+.quotation-tools { margin-bottom:20px; }
+.quotation-tabs { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.quotation-tabs input { max-width:200px; }.quotation-tabs select { flex:1; min-width:220px; }
+.quotation-tabs span { font-size:12px; color:#687c74; }
+.formula-bar { display:flex; align-items:center; gap:10px; margin:15px 0; }
+.formula-bar b { min-width:60px; font-size:13px; }
+.formula-bar input { font-family:monospace; }
+.sheet-scroll { max-height:65vh; overflow:auto; border:1px solid #ddd; }
+.sheet-grid { border-collapse:separate; border-spacing:0; width:max-content; min-width:100%; }
+.sheet-grid th { position:sticky; top:0; z-index:2; background:#f3e5e9; color:#651d38; text-align:center; padding:7px; }
+.sheet-grid th:first-child { left:0; z-index:3; min-width:40px; }
+.sheet-grid td { padding:0; border-right:1px solid #e7e3e0; border-bottom:1px solid #e7e3e0; min-width:125px; max-width:300px; }
+.sheet-grid td button { display:block; width:100%; min-height:32px; background:transparent; border:0; padding:6px 8px; color:inherit; text-align:left; overflow:hidden; text-overflow:ellipsis; max-width:300px; white-space:nowrap; font-size:12px; }
+.sheet-grid td.computed { background:#f2f7f3; }.sheet-grid td.cell-error { background:#ffe5e5; color:#9b2533; }
+.sheet-grid td.cell-active { outline:2px solid #873550; outline-offset:-2px; }
+.quotation-summary { padding:15px; background:#f9f2f5; border-radius:8px; }
+.upload-label { font-size:12px; }.upload-label input { max-width:260px; }
 .shell { min-height: 100vh; display: flex; } .sidebar { width: 255px; background: #651d38; color: #ffe3ed; padding: 28px 16px; display: flex; flex-direction: column; position: fixed; height: 100vh; }
 .brand { display: flex; align-items: center; gap: 12px; padding: 0 12px 34px; font: 700 20px "Playfair Display", serif; color: #ffe3ed; }.brand > span { width: 42px; height: 42px; border-radius: 50%; background: #f5abc3; color: #651d38; display: grid; place-items: center; font: 700 14px "DM Sans"; }.brand small { display: block; font: 400 11px "DM Sans"; color: #f7bfd1; margin-top: 3px; letter-spacing: .2px; }
 nav { display: grid; gap: 5px; } nav button { border: 0; padding: 13px 14px; background: transparent; border-radius: 9px; text-align: left; color: #ffdce8; display: flex; gap: 13px; align-items: center; font-size: 14px; } nav button:hover, nav button.active { background: #873550; color: #fff4f8; } nav i { font-style: normal; width: 18px; color: #f8b8ce; font-size: 17px; }.sidebar-footer { margin-top: auto; padding: 16px 12px; font-size: 12px; line-height: 1.6; color: #f7c5d5; border-top: 1px solid #9e4e68; }

@@ -3,13 +3,25 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, JSON, Numeric, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
 
 
 class Base(DeclarativeBase):
     pass
+
+
+class QuotationWorkbook(Base):
+    __tablename__ = 'quotation_workbooks'
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+    source_url: Mapped[str | None] = mapped_column(String(500))
+    data: Mapped[dict] = mapped_column(JSON, nullable=False)
+    bindings: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class PaymentMethod(str, enum.Enum):
@@ -36,10 +48,6 @@ class Product(Base):
     target_margin_percentage: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, default=0)
     reseller_cash_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     reseller_card_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
-    additional_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
-    target_margin_percentage: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, default=0)
-    reseller_cash_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
-    reseller_card_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     sale_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     current_stock: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -57,11 +65,6 @@ class Sale(Base):
     gross_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     discount_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     net_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    payment_fee_rate: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False, default=0)
-    payment_fee_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
-    received_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    is_cancelled: Mapped[bool] = mapped_column(nullable=False, default=False, index=True)
-    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     payment_fee_rate: Mapped[Decimal] = mapped_column(Numeric(6, 4), nullable=False, default=0)
     payment_fee_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
     received_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)

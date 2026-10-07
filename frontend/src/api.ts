@@ -7,6 +7,10 @@ export interface QuotationRow {
   additional_cost: string; sale_price: string; target_margin_percentage: string;
 }
 export interface QuotationPreview { rows: QuotationRow[]; warnings: string[]; notice: string }
+export interface SheetCell { value: string | number | boolean | null; formula?: string | null; format: string; error?: string | null }
+export interface QuotationBook { sheets: {name: string; rows: SheetCell[][]}[] }
+export interface WorkbookDocument { id?: string; version: number; title: string; source_url: string | null; book: QuotationBook; bindings: Record<string,string> }
+export interface WorkbookResult { book: QuotationBook; rows: QuotationRow[]; warnings: string[] }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (import.meta.env.MODE === "github-pages" && !import.meta.env.VITE_API_URL) {
@@ -44,4 +48,16 @@ export const api = {
     return result;
   },
   quotationApply: (rows: QuotationRow[], update_sale_prices: boolean) => request<{created: number; updated: number}>("/quotations/apply", {method: "POST", body: JSON.stringify({rows, update_sale_prices})}),
+  workbookGoogle: (url: string) => request<{book: QuotationBook}>("/quotations/workbook/google", {method: "POST", body: JSON.stringify({url})}),
+  workbookExcel: async (file: File): Promise<{book: QuotationBook}> => {
+    const data = new FormData(); data.append('file',file);
+    const response = await fetch(`${API}/quotations/workbook/excel`, {method:'POST', body:data});
+    const result = await response.json();
+    if(!response.ok) throw new Error(typeof result.detail === 'string' ? result.detail : 'Falha ao importar planilha');
+    return result;
+  },
+  workbookCalculate: (book: QuotationBook) => request<WorkbookResult>('/quotations/workbook/calculate', {method:'POST',body:JSON.stringify(book)}),
+  workbookList: () => request<{id:string;title:string;version:number}[]>('/quotations/documents'),
+  workbookGet: (id:string) => request<WorkbookDocument>(`/quotations/documents/${id}`),
+  workbookSave: (document:WorkbookDocument, sync_sheets:string[], update_sale_prices:boolean) => request<WorkbookResult & {id:string;version:number;bindings:Record<string,string>;created:number;updated:number}>('/quotations/documents/save',{method:'POST',body:JSON.stringify({...document,sync_sheets,update_sale_prices})}),
 };
