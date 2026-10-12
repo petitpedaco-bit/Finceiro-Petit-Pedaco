@@ -7,6 +7,13 @@
 .quotation-actions button:not(.primary) { padding:10px 14px; border:1px solid #d9dfda; background:#faf8f4; border-radius:7px; color:#651d38; }
 .quotation-actions button:disabled { opacity:.5; cursor:wait; }
 .quotation-tools { margin-bottom:20px; }
+.expense-fields { border:0; margin:0; padding:0; min-width:0; }
+.expense-suggestion { padding:14px; margin:15px 0; background:#f9f2f5; border:1px solid #ead8e0; border-radius:8px; font-size:13px; }
+.expense-suggestion button { display:block; margin-top:10px; padding:8px; border:1px solid #873550; background:#fff; color:#651d38; border-radius:6px; }
+.expense-review input { display:inline; width:auto; margin-right:8px; }
+.expense-page .form-page h2 { margin-bottom:12px; }
+.data-refresh { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; font-size:12px; color:#687c74; }
+.data-refresh button { border:1px solid #d9dfda; border-radius:7px; padding:8px 12px; background:#fff; color:#651d38; }
 .products-quotation-section { margin-top:24px; }
 .sale-product-select { display:block; margin:20px 0; font-size:13px; color:#50675e; }
 .product-picker { min-width:0; }

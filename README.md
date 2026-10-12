@@ -19,6 +19,45 @@ ambiente local. Para produção, use migrations Alembic versionadas.
 
 ## Fluxo de uso
 
+### Classificação automática local
+
+Na aba **Despesas**, a descrição e a finalidade geram sugestões de custo direto,
+custo indireto de produção, despesa administrativa, comercial, financeira ou
+tributos. Fixo, variável e misto são dimensões independentes. É um motor local
+de regras explicáveis e exemplos confirmados, não um serviço de IA generativa.
+Não há chave de IA nem envio de descrições a fornecedores de IA. A confirmação
+é obrigatória para salvar uma classificação diferente de "Não classificado".
+As sugestões não fazem rateios, não alteram fichas, não lançam gastos sozinhas
+e não mudam a DRE. Gastos antigos permanecem não classificados até revisão.
+
+O histórico traz 20 registros por página. **Revisar** altera apenas categoria,
+classificação, comportamento e finalidade; valor, data e forma de pagamento
+são preservados. Descrições iguais, normalizadas e na mesma finalidade usam
+as três últimas confirmações como referência; divergências exigem nova revisão.
+Nos Relatórios, **Gastos por classificação** agrupa pagamentos, não CMV nem
+apropriação contábil. Confira materiais já incluídos nas fichas e taxas geradas
+pelo checkout para não lançar saídas duplicadas. Ativos e empréstimos são
+sinalizados para revisão, não classificados como despesas automaticamente.
+
+### Carregamento e histórico
+
+A cotação não é carregada na abertura da Visão geral. Produtos usa o resumo
+em cache, sem transferir a planilha inteira nem recalculá-la. O resumo antigo
+é gerado uma vez e atualizado no salvamento; a busca por SKU também usa esse
+cache. A planilha completa é lida em importações e salvamentos explícitos.
+A sincronização automática fica restrita à tela Produtos aberta e visível.
+Alterar datas de relatórios não recarrega a lista de produtos.
+Use **Atualizar dados e histórico** para recarregar os dados; vendas e gastos
+também atualizam os relatórios após salvar. A estrutura do banco tem controle
+de versão: inicializações seguintes pulam alterações de tabelas e atualizações
+de compatibilidade já aplicadas. Novas migrações devem mudar `SCHEMA_VERSION`.
+
+Essas otimizações não eliminam o despertar do plano gratuito do Render após
+inatividade: [limitações oficiais](https://render.com/docs/free#spinning-down-on-idle).
+Para os testes PostgreSQL, execute primeiro `python -m app.init_db`, depois
+`RUN_DATABASE_TESTS=1 python -m unittest discover -s tests` (sintaxe de variável
+de ambiente varia conforme o shell). As escritas financeiras de teste são revertidas.
+
 ### Cotações vinculadas a produtos
 
 Em **Nova venda**, a lista suspensa mostra todos os produtos cadastrados,
@@ -48,7 +87,7 @@ essa fonte, ou **Importar Excel** para enviar um arquivo. A leitura recalcula e
 salva todos os produtos válidos; fichas com erros ficam nos avisos de revisão.
 O botão **Salvar atualizações no banco** aplica os custos de todas as fichas
 válidas. O cadastro busca essas fichas por nome ou SKU. A atualização automática consulta
-o Google a cada minuto enquanto a página está aberta e visível, sem requisições
+o Google a cada minuto enquanto a tela Produtos está aberta e visível, sem requisições
 simultâneas. Ela pausa com importações não salvas. Não é uma sincronização
 instantânea nem um serviço em segundo plano: o plano gratuito pode atrasar a
 leitura. Arquivos Excel precisam ser reenviados quando forem alterados.

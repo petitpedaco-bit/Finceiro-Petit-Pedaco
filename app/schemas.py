@@ -6,6 +6,7 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models import PaymentMethod
+from app.services.expense_classifier import ExpenseNature, ExpenseBehavior, ExpenseContext
 
 MONEY_QUANTUM = Decimal("0.01")
 
@@ -136,12 +137,57 @@ class SaleSummary(BaseModel):
     is_cancelled: bool
 
 
-class ExpenseCreate(BaseModel):
+class ExpenseClassification(BaseModel):
+    expense_nature: ExpenseNature = ExpenseNature.UNCLASSIFIED
+    expense_behavior: ExpenseBehavior = ExpenseBehavior.UNSPECIFIED
+    expense_context: ExpenseContext = ExpenseContext.GENERAL
+    classification_reviewed: bool = False
+
+    @model_validator(mode='after')
+    def require_review(self):
+        if self.expense_nature != ExpenseNature.UNCLASSIFIED and not self.classification_reviewed:
+            raise ValueError('Confirme a revisão da classificação antes de salvar')
+        return self
+
+
+class ExpenseCreate(ExpenseClassification):
     description: str = Field(min_length=1, max_length=255)
     category: str = Field(min_length=1, max_length=100)
     amount: Decimal = Field(gt=0, max_digits=14, decimal_places=2)
     payment_method: PaymentMethod
     payment_date: datetime
+
+    @field_validator('description','category')
+    @classmethod
+    def nonempty_text(cls,value:str) -> str:
+        if not value.strip():raise ValueError('não pode ser vazio')
+        return value.strip()
+
+
+class ExpenseSuggestionRequest(BaseModel):
+    description: str = Field(min_length=2, max_length=255)
+    category: str = Field(default='', max_length=100)
+    expense_context: ExpenseContext = ExpenseContext.GENERAL
+
+
+class ExpenseClassificationUpdate(ExpenseClassification):
+    category: str = Field(min_length=1, max_length=100)
+
+    @field_validator('category')
+    @classmethod
+    def nonempty_category(cls,value:str) -> str:
+        if not value.strip():raise ValueError('não pode ser vazio')
+        return value.strip()
+
+
+class ExpenseResponse(ExpenseClassification):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    description: str
+    category: str | None
+    amount: Decimal
+    payment_method: PaymentMethod
+    occurred_at: datetime
 
 
 class DREResponse(BaseModel):

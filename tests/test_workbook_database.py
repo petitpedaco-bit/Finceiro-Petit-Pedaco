@@ -1,13 +1,13 @@
 """Integração PostgreSQL; toda a escrita é revertida ao fim do teste."""
 import os
 import unittest
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
 from app.database import engine
 from app.models import Base, Product, QuotationWorkbook
-from app.routers.quotations import SaveWorkbook, quotation_products, save_workbook
+from app.routers.quotations import SaveWorkbook, quotation_products, save_workbook, get_workbook_summary
 from app.services.workbook_service import QuotationBook
 
 
@@ -38,6 +38,9 @@ class WorkbookDatabaseTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(float(product.additional_cost),6)
                     self.assertEqual(float(product.sale_price),25)
                     self.assertEqual(product.current_stock,0)
+                    summary=await get_workbook_summary(document.id,session)
+                    self.assertNotIn('book',summary)
+                    self.assertEqual(summary['rows'][0]['cost_price'],'10.00')
                     product.current_stock=7
                     await session.commit()
                 async with AsyncSession(bind=connection,join_transaction_mode='create_savepoint') as session:
@@ -48,6 +51,16 @@ class WorkbookDatabaseTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(matches[0]['product']['current_stock'],7)
                     self.assertEqual(matches[0]['product']['additional_cost'],'6.00')
                 book.sheets[0].rows[0][4].value=12
+                async with AsyncSession(bind=connection,expire_on_commit=False,join_transaction_mode='create_savepoint') as session:
+                    import uuid
+                    await session.execute(update(QuotationWorkbook).where(QuotationWorkbook.id==uuid.UUID(result['id'])).values(preview_summary=None))
+                    await session.commit()
+                async with AsyncSession(bind=connection,expire_on_commit=False,join_transaction_mode='create_savepoint') as session:
+                    legacy_summary=await get_workbook_summary(uuid.UUID(result['id']),session)
+                    self.assertEqual(legacy_summary['version'],1)
+                    self.assertNotIn('book',legacy_summary)
+                    cached=await session.scalar(select(QuotationWorkbook.preview_summary).where(QuotationWorkbook.id==uuid.UUID(result['id'])))
+                    self.assertEqual(cached['rows'][0]['cost_price'],'10.00')
                 async with AsyncSession(bind=connection,expire_on_commit=False,join_transaction_mode='create_savepoint') as session:
                     result=await save_workbook(SaveWorkbook(id=result['id'],version=1,title='Teste isolado',book=book,
                         bindings={'Teste DB':'__TEST_QUOTATION__'},sync_sheets=['Teste DB']),session)

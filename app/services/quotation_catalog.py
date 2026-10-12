@@ -16,16 +16,22 @@ def search_catalog(documents: list[dict], search: str, limit: int = 20) -> list[
     catalog = {}
     seen = set()
     for document in documents:
-        book = QuotationBook.model_validate(document['data'])
-        valid = {row['sheet']: row for row in workbook_quotations(book)['rows']}
-        for sheet in book.sheets:
-            sku = document['bindings'].get(sheet.name,
-                'COT-' + hashlib.sha256(sheet.name.encode()).hexdigest()[:16].upper())
+        if document.get('preview_summary') is not None:
+            preview=document['preview_summary']
+            names=preview['sheet_names']
+        else:
+            book=QuotationBook.model_validate(document['data'])
+            preview=workbook_quotations(book)
+            names=[sheet.name for sheet in book.sheets]
+        valid = {row['sheet']: row for row in preview['rows']}
+        for name in names:
+            sku = document['bindings'].get(name,
+                'COT-' + hashlib.sha256(name.encode()).hexdigest()[:16].upper())
             if sku in seen:
                 continue
             seen.add(sku)
-            if sheet.name in valid:
-                catalog[sku] = {**valid[sheet.name], 'sku': sku,
+            if name in valid:
+                catalog[sku] = {**valid[name], 'sku': sku,
                     'document_id': str(document['id']), 'document_title': document['title']}
     term = normalized(search)
     matches = [row for row in catalog.values()

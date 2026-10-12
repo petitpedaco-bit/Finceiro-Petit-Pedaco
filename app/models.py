@@ -20,6 +20,7 @@ class QuotationWorkbook(Base):
     source_url: Mapped[str | None] = mapped_column(String(500))
     data: Mapped[dict] = mapped_column(JSON, nullable=False)
     bindings: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    preview_summary: Mapped[dict | None] = mapped_column(JSON)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -107,6 +108,11 @@ class CashFlowTransaction(Base):
         Uuid, ForeignKey("sales.id"), unique=True, nullable=True, index=True
     )
     notes: Mapped[str | None] = mapped_column(Text)
+    expense_nature: Mapped[str] = mapped_column(String(32), nullable=False, default='UNCLASSIFIED', server_default='UNCLASSIFIED')
+    expense_behavior: Mapped[str] = mapped_column(String(16), nullable=False, default='UNSPECIFIED', server_default='UNSPECIFIED')
+    expense_context: Mapped[str] = mapped_column(String(24), nullable=False, default='GENERAL', server_default='GENERAL')
+    classification_reviewed: Mapped[bool] = mapped_column(nullable=False, default=False, server_default='false')
+    classification_key: Mapped[str | None] = mapped_column(String(64), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     sale: Mapped[Sale | None] = relationship(back_populates="cash_transaction")

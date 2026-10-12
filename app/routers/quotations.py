@@ -4,7 +4,7 @@ import uuid
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
@@ -90,11 +90,12 @@ class SaveWorkbook(BaseModel):
 @router.get('/products')
 async def quotation_products(search: str = Query(default='', max_length=160),
                              session: AsyncSession = Depends(get_session)) -> list[dict]:
-    documents = (await session.scalars(select(QuotationWorkbook)
-        .order_by(QuotationWorkbook.updated_at.desc(), QuotationWorkbook.id.desc()))).all()
-    rows = await run_in_threadpool(search_catalog, [
-        {'id': document.id, 'title': document.title, 'data': document.data,
-         'bindings': document.bindings} for document in documents], search)
+    ids=(await session.scalars(select(QuotationWorkbook.id).order_by(
+        QuotationWorkbook.updated_at.desc(),QuotationWorkbook.id.desc()))).all()
+    summaries=[await get_workbook_summary(identity,session) for identity in ids]
+    rows=await run_in_threadpool(search_catalog,[
+        {'id':item['id'],'title':item['title'],'bindings':item['bindings'],
+         'preview_summary':{'rows':item['rows'],'sheet_names':item['sheet_names']}} for item in summaries],search)
     if not rows:
         return []
     products = (await session.scalars(select(Product).where(
@@ -147,6 +148,30 @@ async def get_workbook(document_id: uuid.UUID, session: AsyncSession = Depends(g
         'source_url': document.source_url, 'book': document.data, 'bindings': document.bindings}
 
 
+@router.get('/documents/{document_id}/summary')
+async def get_workbook_summary(document_id:uuid.UUID,session:AsyncSession=Depends(get_session)) -> dict:
+    row=(await session.execute(select(QuotationWorkbook.id,QuotationWorkbook.title,QuotationWorkbook.version,
+        QuotationWorkbook.source_url,QuotationWorkbook.bindings,QuotationWorkbook.preview_summary,
+        QuotationWorkbook.updated_at).where(QuotationWorkbook.id==document_id))).mappings().one_or_none()
+    if row is None:raise HTTPException(404,'Cotação não encontrada')
+    metadata=dict(row)
+    summary=metadata.pop('preview_summary')
+    if summary is None:
+        data=await session.scalar(select(QuotationWorkbook.data).where(QuotationWorkbook.id==document_id))
+        book=await run_in_threadpool(QuotationBook.model_validate,data)
+        summary=await run_in_threadpool(workbook_quotations,book)
+        summary['sheet_names']=[sheet.name for sheet in book.sheets]
+        result=await session.execute(update(QuotationWorkbook).where(
+            QuotationWorkbook.id==document_id,QuotationWorkbook.version==metadata['version']
+        ).values(preview_summary=summary,updated_at=metadata['updated_at']))
+        if not result.rowcount:
+            await session.rollback()
+            raise HTTPException(409,'A cotação mudou durante a leitura. Tente novamente.')
+        await session.commit()
+    metadata.pop('updated_at')
+    return {**metadata,**summary}
+
+
 @router.post('/documents/save')
 async def save_workbook(payload: SaveWorkbook, session: AsyncSession = Depends(get_session)) -> dict:
     warnings = await run_in_threadpool(WorkbookCalculator(payload.book).calculate)
@@ -180,6 +205,8 @@ async def save_workbook(payload: SaveWorkbook, session: AsyncSession = Depends(g
         document.title = payload.title
         document.source_url = payload.source_url
         document.data = payload.book.model_dump(mode='json')
+        document.preview_summary={'rows':preview['rows'],'warnings':warnings+preview['warnings'],
+            'sheet_names':[sheet.name for sheet in payload.book.sheets]}
         document.bindings = {**payload.bindings, **{row.sheet: row.sku for row in sync_rows}}
         for row in sorted(sync_rows, key=lambda row: row.sku):
             product = await session.scalar(select(Product).where(Product.sku == row.sku).with_for_update())

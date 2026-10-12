@@ -12,6 +12,9 @@ export interface SheetCell { value: string | number | boolean | null; formula?: 
 export interface QuotationBook { sheets: {name: string; rows: SheetCell[][]}[] }
 export interface WorkbookDocument { id?: string; version: number; title: string; source_url: string | null; book: QuotationBook; bindings: Record<string,string> }
 export interface WorkbookResult { book: QuotationBook; rows: QuotationRow[]; warnings: string[] }
+export interface WorkbookSummary extends Omit<WorkbookDocument,'book'> { rows:QuotationRow[]; warnings:string[]; sheet_names:string[] }
+export interface ExpenseRecord { id:string;description:string;category:string|null;amount:string;payment_method:string;occurred_at:string;expense_nature:string;expense_behavior:string;expense_context:string;classification_reviewed:boolean }
+export interface ExpenseSuggestion { expense_nature:string;expense_behavior:string;category:string;reason:string;confidence:string;method:string }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (import.meta.env.MODE === "github-pages" && !import.meta.env.VITE_API_URL) {
@@ -36,6 +39,10 @@ export const api = {
   deleteProduct: (id: string) => request<void>(`/products/${id}`, { method: "DELETE" }),
   checkout: (data: unknown) => request("/sales/checkout", { method: "POST", body: JSON.stringify(data) }),
   expense: (data: unknown) => request("/cash-flow/expenses", { method: "POST", body: JSON.stringify(data) }),
+  suggestExpense: (data:unknown) => request<ExpenseSuggestion>('/cash-flow/expenses/suggest',{method:'POST',body:JSON.stringify(data)}),
+  expenseHistory: (offset=0) => request<{items:ExpenseRecord[];total:number}>(`/cash-flow/expenses?limit=20&offset=${offset}`),
+  reviewExpense: (id:string,data:unknown) => request<ExpenseRecord>(`/cash-flow/expenses/${id}/classification`,{method:'PATCH',body:JSON.stringify(data)}),
+  expenseBreakdown: (start:string,end:string) => request<{groups:{expense_nature:string;expense_behavior:string;amount:string;count:number}[];notice:string}>(`/reports/expense-breakdown?start_date=${start}&end_date=${end}`),
   dre: (start: string, end: string) => request<DRE>(`/reports/dre?start_date=${start}&end_date=${end}`),
   abc: (start: string, end: string) => request<ABCResponse>(`/reports/abc-curve?start_date=${start}&end_date=${end}`),
   cashFlow: (start: string, end: string) => request<CashFlow>(`/reports/cash-flow?start_date=${start}&end_date=${end}`),
@@ -61,5 +68,6 @@ export const api = {
   workbookCalculate: (book: QuotationBook) => request<WorkbookResult>('/quotations/workbook/calculate', {method:'POST',body:JSON.stringify(book)}),
   workbookList: () => request<{id:string;title:string;version:number}[]>('/quotations/documents'),
   workbookGet: (id:string) => request<WorkbookDocument>(`/quotations/documents/${id}`),
+  workbookSummary: (id:string) => request<WorkbookSummary>(`/quotations/documents/${id}/summary`),
   workbookSave: (document:WorkbookDocument, sync_sheets:string[], update_sale_prices:boolean) => request<WorkbookResult & {id:string;version:number;bindings:Record<string,string>;created:number;updated:number}>('/quotations/documents/save',{method:'POST',body:JSON.stringify({...document,sync_sheets,update_sale_prices})}),
 };
