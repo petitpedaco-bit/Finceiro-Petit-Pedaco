@@ -65,3 +65,54 @@ main { margin-left: 255px; width: calc(100% - 255px); padding: 38px 5.5%; max-wi
 .bank-editor { width:min(640px,100%); max-height:90vh; overflow:auto; }.bank-editor fieldset { border:0; padding:0; min-width:0; }.bank-original { overflow-wrap:anywhere; white-space:normal; }.bank-editor .bank-check { display:flex; align-items:flex-start; gap:8px; }.bank-editor .bank-check input { width:auto; margin-top:3px; flex-shrink:0; }
 .bank-history-filters { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:16px 0; }.bank-history-filters label { margin:0; font-size:12px; }.bank-search-filter, .bank-history-filters .quotation-actions { grid-column:span 2; } @media(max-width:700px) { .bank-history-filters { grid-template-columns:repeat(2,minmax(0,1fr)); } } @media(max-width:430px) { .bank-history-filters { grid-template-columns:1fr; }.bank-search-filter, .bank-history-filters .quotation-actions { grid-column:auto; } }
 .sale-guard { min-width:0; border:0; margin:0; padding:0; }.sale-history-products { white-space:normal; min-width:200px; max-width:350px; }.sale-history-products small { display:block; color:#74867c; }.sales-history-panel label { display:block; max-width:260px; margin:12px 0; }
+
+/* Keep wide financial tables inside their panels, including on narrow phones. */
+main, .grid > *, .pos > *, .card, .cart-lines { min-width:0; }
+input, select, textarea { max-width:100%; }
+button:focus-visible { outline:3px solid #b46c87; outline-offset:3px; }
+.table-wrap, .bank-table, .sheet-scroll, .abc { overscroll-behavior-x:contain; }
+@media (max-width:620px) {
+  .shell { display:block; }
+  .sidebar { position:relative; width:100%; height:auto; padding:14px 12px 10px; }
+  .brand { padding:0 4px 12px; font-size:20px; }
+  .brand div { display:block; font-size:20px; }
+  .brand > span { flex-shrink:0; width:40px; height:40px; }
+  .sidebar nav { display:flex; gap:6px; overflow-x:auto; padding:2px 2px 6px; }
+  .sidebar nav button { flex:0 0 auto; min-height:44px; font-size:13px; padding:10px 12px; gap:7px; white-space:nowrap; }
+  .sidebar nav i { font-size:16px; }
+  main { margin-left:0; width:100%; padding:22px 14px max(22px,env(safe-area-inset-bottom)); }
+  header { gap:12px; }
+  h1 { font-size:28px; }
+  .card, .product-picker, .cart { padding:16px; }
+  .table-wrap { padding:0; }
+  .card-title { flex-wrap:wrap; align-items:flex-start; gap:10px; }
+  .card-title h2, .product-picker h2, .cart h2 { font-size:20px; overflow-wrap:anywhere; }
+  .card-title span { white-space:normal; }
+  button, input:not([type="checkbox"]), select { min-height:44px; }
+  input, select, textarea { font-size:16px; }
+  .quotation-actions { align-items:stretch; }
+  .quotation-actions > button, .quotation-actions > label { flex:1 1 180px; }
+  .quotation-actions > span { align-self:center; }
+  .quotation-tabs { align-items:stretch; }
+  .quotation-tabs input, .quotation-tabs select { max-width:100%; min-width:0; flex:1 1 100%; }
+  .upload-label input { max-width:100%; }
+  .formula-bar b { min-width:32px; }
+  .line { gap:12px; align-items:flex-start; }
+  .line span { min-width:0; }
+  .line b { flex-shrink:0; }
+  .stat strong { overflow-wrap:anywhere; }
+  .cart-line { grid-template-columns:minmax(0,1fr) 58px 76px 30px; gap:6px; }
+  .cart-line > div { grid-column:1 / -1; overflow-wrap:anywhere; }
+  .cart-line > input:first-of-type { grid-column:2; }
+  .cart-line .remove { margin:0; min-width:30px; font-size:22px; }
+  .total { flex-wrap:wrap; gap:10px; }
+  .modal-backdrop { padding:12px; }
+  .modal { padding:18px; max-height:calc(100dvh - 24px); overflow:auto; }
+  .modal-footer { flex-wrap:wrap; }
+  .modal-footer > button { flex:1; }
+  .quotation-matches button { flex-wrap:wrap; }
+  .quotation-matches span:last-child { text-align:left; }
+  .bank-history-filters { grid-template-columns:1fr; }
+  .bank-search-filter, .bank-history-filters .quotation-actions { grid-column:auto; }
+  .sales-history-panel { overflow-x:auto; }
+}

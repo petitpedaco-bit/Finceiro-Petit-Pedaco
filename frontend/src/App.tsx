@@ -57,7 +57,7 @@ function App() {
   return <div className="shell">
     <aside className="sidebar"><div className="brand"><span>PP</span><div>Petit Pedaço<small>Gestão inteligente</small></div></div>
       <nav>{([ ["dashboard", "⌂", "Visão geral"], ["products", "▣", "Produtos"], ["sales", "◉", "Nova venda"], ["expenses", "−", "Despesas"], ["reports", "▤", "Relatórios"] ] as [Screen, string, string][]).map(([id, icon, label]) =>
-        <button key={id} className={screen === id ? "active" : ""} onClick={() => setScreen(id)}><i>{icon}</i>{label}</button>)}</nav>
+        <button key={id} type="button" aria-current={screen === id ? "page" : undefined} aria-label={label} title={label} className={screen === id ? "active" : ""} onClick={() => setScreen(id)}><i aria-hidden="true">{icon}</i>{label}</button>)}</nav>
       <div className="sidebar-footer">API Financeira<br/><small>v1.0</small></div>
     </aside>
     <main><header><div><p className="eyebrow">CONTROLE FINANCEIRO</p><h1>{({ dashboard: "Visão geral", products: "Produtos", sales: "Ponto de venda", expenses: "Lançar despesa", reports: "Relatórios" } as Record<Screen, string>)[screen]}</h1></div><div className="date">{new Intl.DateTimeFormat("pt-BR", { dateStyle: "full" }).format(new Date())}</div></header>
