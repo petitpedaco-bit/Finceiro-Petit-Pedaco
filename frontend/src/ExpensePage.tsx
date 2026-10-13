@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { api, ExpenseRecord, ExpenseSuggestion } from './api';
+import BankImportPanel from './BankImportPanel';
 
 export const natureLabels:Record<string,string>={DIRECT_COST:'Custo direto',INDIRECT_COST:'Custo indireto de produção',ADMINISTRATIVE:'Despesa administrativa',COMMERCIAL:'Despesa comercial',FINANCIAL:'Despesa financeira',TAX:'Tributos',UNCLASSIFIED:'Não classificado / revisar'};
 export const behaviorLabels:Record<string,string>={FIXED:'Fixo',VARIABLE:'Variável',MIXED:'Misto',UNSPECIFIED:'Não definido'};
@@ -59,6 +60,7 @@ export default function ExpensePage({refresh,notify,fail}:{refresh:()=>Promise<v
     finally{setBusy(false);}
   };
   return <div className="expense-page">
+    <BankImportPanel onSaved={async()=>{if(offset===0)await load(0);else setOffset(0);await refresh();}}/>
     <section className="form-page card"><h2>{review?'Revisar classificação':'Custos e despesas'}</h2>
       <p className="subtitle">Classificação local por regras e exemplos confirmados, sem API paga. Sugestões não são lançadas automaticamente.</p>
       <form onSubmit={submit}><fieldset disabled={busy} className="expense-fields">

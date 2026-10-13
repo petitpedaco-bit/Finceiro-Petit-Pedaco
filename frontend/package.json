@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "node --experimental-strip-types --test tests/saleProductSearch.test.mjs",
+    "test": "node --experimental-strip-types --test tests/saleProductSearch.test.mjs tests/bankImportChoices.test.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },

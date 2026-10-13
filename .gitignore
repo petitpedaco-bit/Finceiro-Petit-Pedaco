@@ -10,3 +10,4 @@ venv/
 .vscode/
 *.xlsx
 *.xls
+*.pdf

@@ -116,3 +116,21 @@ class CashFlowTransaction(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     sale: Mapped[Sale | None] = relationship(back_populates="cash_transaction")
+
+
+class BankMovement(Base):
+    """Extrato de conciliação: não compõe DRE nem fluxo operacional sozinho."""
+    __tablename__ = 'bank_movements'
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    account_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    statement_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    direction: Mapped[str] = mapped_column(String(8), nullable=False)
+    description: Mapped[str] = mapped_column(String(255), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    disposition: Mapped[str] = mapped_column(String(16), nullable=False)
+    cash_transaction_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey('cash_flow_transactions.id', ondelete='SET NULL'), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

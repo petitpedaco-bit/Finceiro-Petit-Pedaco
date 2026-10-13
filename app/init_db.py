@@ -10,7 +10,7 @@ from sqlalchemy import text
 from app.database import engine
 from app.models import Base
 
-SCHEMA_VERSION = '2026-10-12-classification-summary-v1'
+SCHEMA_VERSION = '2026-10-12-nubank-import-v2'
 
 
 async def initialize_database() -> None:

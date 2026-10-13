@@ -125,6 +125,37 @@ Para o GitHub Pages, configure a API remota antes de usar a importação.
 4. Consulte `GET /reports/dre`, `GET /reports/abc-curve` e
    `GET /reports/cash-flow` com `start_date` e `end_date`.
 
+## Importar extratos Nubank
+
+Em **Despesas**, use **Importar extrato PDF — Nubank**. Aceita o PDF digital
+original (até 8 MB, 40 páginas, 1.000 movimentações), não fotos ou PDFs com senha.
+A prévia confere as movimentações com os totais diários; divergências bloqueiam
+o salvamento. Nenhum PDF, CPF ou número de conta é persistido; a conta é
+identificada por hash e documentos/contas nas descrições são ocultados.
+Nomes de contrapartes e descrições das movimentações selecionadas são mantidos.
+
+O padrão é **somente conferência bancária**, separado da DRE/fluxo operacional.
+Entradas não criam vendas, receitas, estoque ou taxas. Pode-se **vincular**
+manualmente um lançamento existente do mesmo valor/direção em até três dias,
+sem criar um novo valor. As sugestões por valor/data não comprovam correspondência.
+Para uma saída ainda não contabilizada, escolha **registrar nova despesa**, revise
+categoria/classificação e confirme que não é transferência/aporte/amortização
+nem custo ou taxa já registrado. Despesas criadas aparecem no histórico habitual.
+
+Reimportações, inclusive períodos sobrepostos, são deduplicadas por conta, dia,
+direção, valor, descrição e ocorrência repetida. Sem identificador bancário,
+movimentações idênticas no mesmo dia exigem atenção: extratos parciais desse
+mesmo dia podem ser ambíguos. Prefira exportar dias completos. Movimentações
+já importadas não são convertidas automaticamente em despesas na reimportação.
+O histórico bancário tem paginação e só carrega ao ser aberto. Importação e
+despesas são gravadas atomicamente. O horário adotado é meio-dia de São Paulo,
+pois este modelo de extrato fornece a data, não a hora de cada transação.
+
+Rotas: `POST /bank-imports/nubank/preview`, `POST /bank-imports/nubank/save`
+(multipart, PDF + seleção revisada), `GET /bank-imports/movements`.
+A extração usa [pypdf](https://pypdf.readthedocs.io/en/stable/user/extract-text.html),
+local no servidor, sem API de IA paga. PagBank não está incluído nesta etapa.
+
 ## Executar sem Docker
 
 Configure uma instância PostgreSQL, defina `DATABASE_URL` com o driver

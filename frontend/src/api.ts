@@ -15,6 +15,20 @@ export interface WorkbookResult { book: QuotationBook; rows: QuotationRow[]; war
 export interface WorkbookSummary extends Omit<WorkbookDocument,'book'> { rows:QuotationRow[]; warnings:string[]; sheet_names:string[] }
 export interface ExpenseRecord { id:string;description:string;category:string|null;amount:string;payment_method:string;occurred_at:string;expense_nature:string;expense_behavior:string;expense_context:string;classification_reviewed:boolean }
 export interface ExpenseSuggestion { expense_nature:string;expense_behavior:string;category:string;reason:string;confidence:string;method:string }
+export interface BankCandidate { id:string;description:string;amount:string;occurred_at:string;is_sale:boolean }
+export interface BankRow { fingerprint:string;occurred_at:string;direction:'INCOME'|'EXPENSE';description:string;amount:string;duplicate:boolean;suggestion:ExpenseSuggestion|null;candidates:BankCandidate[] }
+export interface BankPreview { bank:string;rows:BankRow[];warnings:string[];income:string;expense:string }
+export interface BankChoice { fingerprint:string;action:'BANK_ONLY'|'EXPENSE'|'LINK';cash_transaction_id:string|null;category:string;payment_method:string;expense_nature:string;expense_behavior:string;expense_context:string;classification_reviewed:boolean }
+export interface BankRecord { id:string;occurred_at:string;direction:string;description:string;amount:string;disposition:string;cash_transaction_id:string|null }
+
+async function bankUpload<T>(path:string,file:File,selection?:unknown):Promise<T> {
+  const data=new FormData();data.append('file',file);
+  if(selection)data.append('selection',JSON.stringify(selection));
+  const response=await fetch(`${API}${path}`,{method:'POST',body:data});
+  const result=await response.json().catch(()=>({detail:'Não foi possível comunicar com o leitor de PDF.'}));
+  if(!response.ok)throw new Error(typeof result.detail==='string'?result.detail:'Confira o PDF e a seleção dos lançamentos.');
+  return result;
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (import.meta.env.MODE === "github-pages" && !import.meta.env.VITE_API_URL) {
@@ -32,6 +46,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  bankPreview:(file:File)=>bankUpload<BankPreview>('/bank-imports/nubank/preview',file),
+  bankSave:(file:File,rows:BankChoice[])=>bankUpload<{saved:number;skipped:number;expenses:number;linked:number}>('/bank-imports/nubank/save',file,{rows,reviewed:true}),
+  bankHistory:(offset=0)=>request<{items:BankRecord[];total:number}>(`/bank-imports/movements?limit=20&offset=${offset}`),
   quotationProducts: (search:string,signal?:AbortSignal) => request<QuotationProduct[]>(`/quotations/products?search=${encodeURIComponent(search)}`,{signal}),
   products: () => request<Product[]>("/products"),
   createProduct: (data: ProductInput) => request<Product>("/products", { method: "POST", body: JSON.stringify(data) }),

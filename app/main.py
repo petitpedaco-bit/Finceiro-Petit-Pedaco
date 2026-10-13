@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import cash_flow, products, quotations, reports, sales
+from app.routers import bank_imports, cash_flow, products, quotations, reports, sales
 
 app = FastAPI(title="Sistema Financeiro e Vendas", version="1.0.0")
 app.add_middleware(
@@ -18,6 +18,7 @@ app.include_router(reports.router)
 app.include_router(cash_flow.router)
 app.include_router(products.router)
 app.include_router(quotations.router)
+app.include_router(bank_imports.router)
 
 
 @app.get("/health")
