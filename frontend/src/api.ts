@@ -1,4 +1,6 @@
 import type { ABCResponse, CashFlow, DRE, Product, ProductInput, SaleSummary } from "./types";
+import { bankHistoryQuery, emptyBankFilters } from './bankHistoryFilters';
+import type { BankHistoryFilters } from './bankHistoryFilters';
 
 const API = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 
@@ -50,7 +52,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   bankPreview:(file:File)=>bankUpload<BankPreview>('/bank-imports/nubank/preview',file),
   bankSave:(file:File,rows:BankChoice[])=>bankUpload<{saved:number;skipped:number;expenses:number;linked:number}>('/bank-imports/nubank/save',file,{rows,reviewed:true}),
-  bankHistory:(offset=0)=>request<{items:BankRecord[];total:number}>(`/bank-imports/movements?limit=20&offset=${offset}`),
+  bankHistory:(offset=0,filters:BankHistoryFilters=emptyBankFilters(),signal?:AbortSignal)=>request<{items:BankRecord[];total:number}>(`/bank-imports/movements?${bankHistoryQuery(offset,filters)}`,{signal}),
   bankEditGet:(id:string)=>request<BankEditData>(`/bank-imports/movements/${id}/edit`),
   bankEditSave:(id:string,data:BankEditInput)=>request<{id:string;version:number;message:string}>(`/bank-imports/movements/${id}`,{method:'PATCH',body:JSON.stringify(data)}),
   quotationProducts: (search:string,signal?:AbortSignal) => request<QuotationProduct[]>(`/quotations/products?search=${encodeURIComponent(search)}`,{signal}),

@@ -127,6 +127,13 @@ Para o GitHub Pages, configure a API remota antes de usar a importação.
 
 ## Importar extratos Nubank
 
+O histórico bancário tem filtros por data inicial/final, entrada/saída,
+tratamento (incluindo cancelados) e busca em descrição/observação, sem diferenciar
+maiúsculas ou acentos. **Aplicar filtros** volta à primeira página; **Limpar
+filtros** restaura o histórico completo. Os filtros e a contagem são aplicados
+no servidor antes da paginação, sem modificar dados ou cálculos financeiros.
+As datas incluem o dia inteiro no fuso de São Paulo.
+
 Após salvar um extrato, use **Editar** ou a lista na coluna **Tratamento**
 para abrir o editor e confirmar a alteração. Entradas podem ser adicionadas
 explicitamente como **Receita**; saídas, como **Despesa**. A receita criada

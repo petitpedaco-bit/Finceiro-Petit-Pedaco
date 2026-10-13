@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { api, BankChoice, BankPreview, BankRecord } from './api';
 import { defaultBankChoice, invalidBankChoice } from './bankImportChoices';
 import BankMovementEditor from './BankMovementEditor';
+import { emptyBankFilters } from './bankHistoryFilters';
 
 const natures:Record<string,string>={UNCLASSIFIED:'Não classificado / revisar',DIRECT_COST:'Custo direto',INDIRECT_COST:'Custo indireto',ADMINISTRATIVE:'Administrativa',COMMERCIAL:'Comercial',FINANCIAL:'Financeira',TAX:'Tributos'};
 const behaviors:Record<string,string>={UNSPECIFIED:'Não definido',FIXED:'Fixo',VARIABLE:'Variável',MIXED:'Misto'};
@@ -26,8 +27,19 @@ export default function BankImportPanel({onSaved,refreshVersion=0}:{onSaved:()=>
   const [historyOpen,setHistoryOpen]=useState(false);
   const [historyError,setHistoryError]=useState('');
   const [editing,setEditing]=useState<{id:string;action?:BankChoice['action']}|null>(null);
-  const load=async(page=offset)=>{setLoading(true);setHistoryError('');try{const data=await api.bankHistory(page);setHistory(data.items);setTotal(data.total);}catch(reason){setHistoryError((reason as Error).message);}finally{setLoading(false);}};
-  useEffect(()=>{if(historyOpen)void load(offset);},[historyOpen,offset,refreshVersion]);
+  const [filterDraft,setFilterDraft]=useState(emptyBankFilters);
+  const [filters,setFilters]=useState(emptyBankFilters);
+  const historyRequest=useRef<AbortController|null>(null);
+  const load=async(page=offset)=>{
+    historyRequest.current?.abort();const request=new AbortController();historyRequest.current=request;
+    setLoading(true);setHistoryError('');
+    try{const data=await api.bankHistory(page,filters,request.signal);if(!request.signal.aborted){setHistory(data.items);setTotal(data.total);if(page>0&&page>=data.total)setOffset(Math.max(0,Math.floor((data.total-1)/20)*20));}}
+    catch(reason){if(!request.signal.aborted)setHistoryError((reason as Error).message);}
+    finally{if(!request.signal.aborted)setLoading(false);}
+  };
+  useEffect(()=>{if(historyOpen)void load(offset);return()=>historyRequest.current?.abort();},[historyOpen,offset,refreshVersion,filters]);
+  const applyFilters=(event:FormEvent)=>{event.preventDefault();setOffset(0);setHistory([]);setTotal(0);setFilters({...filterDraft});};
+  const clearFilters=()=>{setFilterDraft(emptyBankFilters());setFilters(emptyBankFilters());setOffset(0);setHistory([]);setTotal(0);};
   useEffect(()=>{if(refreshVersion){setPreview(null);setChoices({});setSelected({});setReviewed(false);}},[refreshVersion]);
   const change=(id:string,fields:Partial<BankChoice>)=>{setChoices(current=>({...current,[id]:{...current[id],...fields}}));setReviewed(false);};
   const read=async()=>{
@@ -88,10 +100,18 @@ export default function BankImportPanel({onSaved,refreshVersion=0}:{onSaved:()=>
     {error && <p className="alert error" role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     <button type="button" onClick={()=>setHistoryOpen(!historyOpen)}>{historyOpen?'Ocultar':'Ver'} histórico de extratos importados</button>
     {historyOpen && <><h3>Conferência bancária — separada do resultado operacional</h3><button disabled={loading} onClick={()=>void load()}>Atualizar histórico bancário</button>
+      <form className="bank-history-filters" onSubmit={applyFilters}>
+        <label>Data inicial<input type="date" value={filterDraft.start_date} max={filterDraft.end_date||undefined} onChange={event=>setFilterDraft({...filterDraft,start_date:event.target.value})}/></label>
+        <label>Data final<input type="date" value={filterDraft.end_date} min={filterDraft.start_date||undefined} onChange={event=>setFilterDraft({...filterDraft,end_date:event.target.value})}/></label>
+        <label>Direção<select value={filterDraft.direction} onChange={event=>setFilterDraft({...filterDraft,direction:event.target.value})}><option value="">Todas</option><option value="INCOME">Entradas</option><option value="EXPENSE">Saídas</option></select></label>
+        <label>Tratamento<select value={filterDraft.treatment} onChange={event=>setFilterDraft({...filterDraft,treatment:event.target.value})}><option value="">Todos</option><option value="BANK_ONLY">Somente conferência</option><option value="INCOME">Receitas</option><option value="EXPENSE">Despesas</option><option value="LINK">Vinculados</option><option value="CANCELLED">Lançamentos cancelados</option></select></label>
+        <label className="bank-search-filter">Buscar descrição ou observação<input type="search" maxLength={150} placeholder="Nome, descrição ou observação…" value={filterDraft.search} onChange={event=>setFilterDraft({...filterDraft,search:event.target.value})}/></label>
+        <div className="quotation-actions"><button type="submit" className="primary" disabled={busy}>Aplicar filtros</button><button type="button" disabled={busy} onClick={clearFilters}>Limpar filtros</button></div>
+      </form>
       {loading && <p role="status">Carregando extratos…</p>}{historyError && <p className="alert error">{historyError}</p>}
       <div className="bank-table"><table><thead><tr><th>Data</th><th>Direção</th><th>Descrição</th><th>Valor</th><th>Tratamento</th><th>Ações</th></tr></thead><tbody>{history.map(row=><tr key={row.id}><td>{date(row.occurred_at)}</td><td>{row.direction==='INCOME'?'Entrada':'Saída'}</td><td className="bank-description">{row.description}{row.note && <small>Observação: {row.note}</small>}</td><td>{money(row.amount)}</td><td className="bank-treatment"><select aria-label={`Tratamento de ${row.description}`} disabled={busy||loading} value={row.disposition} onChange={event=>setEditing({id:row.id,action:event.target.value as BankChoice['action']})}>
         <option value="BANK_ONLY">Somente conferência bancária</option>{row.direction==='INCOME'?<option value="INCOME">Adicionar como receita</option>:<option value="EXPENSE">Adicionar como despesa</option>}<option value="LINK">Vincular a lançamento existente</option></select><small>{row.cash_cancelled?'Lançamento cancelado · sem impacto financeiro':actions[row.disposition]}</small>{row.disposition==='LINK'&&!row.cash_transaction_id && <small> · Lançamento removido/cancelado</small>}</td><td><button type="button" className="bank-edit-button" disabled={busy||loading} onClick={()=>setEditing({id:row.id})}>Editar</button></td></tr>)}</tbody></table></div>
-      {!loading&&!historyError&&!history.length && <p>Nenhum extrato importado.</p>}
+      {!loading&&!historyError&&!history.length && <p>{Object.values(filters).some(Boolean)?'Nenhuma movimentação encontrada com estes filtros.':'Nenhum extrato importado.'}</p>}
       <div className="quotation-actions"><button disabled={offset===0||loading} onClick={()=>setOffset(Math.max(0,offset-20))}>Anterior</button><span>{total?`${offset+1}–${Math.min(offset+20,total)} de ${total}`:'0 registros'}</span><button disabled={offset+20>=total||loading} onClick={()=>setOffset(offset+20)}>Próxima</button></div></>}
     {editing && <BankMovementEditor id={editing.id} action={editing.action} close={()=>setEditing(null)} onSaved={async result=>{setEditing(null);setPreview(null);setChoices({});setSelected({});setReviewed(false);setMessage(result);await load();await onSaved();}}/>}
   </section>;

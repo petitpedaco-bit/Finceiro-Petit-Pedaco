@@ -1,9 +1,10 @@
 import json
 import hashlib
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Literal
+from typing import Annotated, Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -15,7 +16,7 @@ from app.database import get_session
 from app.models import BankMovement, BankMovementEdit, CashFlowTransaction, CashFlowType, PaymentMethod
 from app.schemas import ExpenseClassification
 from app.services.expense_classifier import classification_key, suggest
-from app.services.nubank_service import MAX_PDF_BYTES, read_pdf
+from app.services.nubank_service import MAX_PDF_BYTES, normalized, read_pdf
 
 router = APIRouter(prefix='/bank-imports', tags=['Extratos Nubank'])
 
@@ -272,10 +273,36 @@ async def save_nubank(file: UploadFile = File(...), selection: str = Form(..., m
 
 @router.get('/movements')
 async def bank_history(limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0),
-                       session: AsyncSession = Depends(get_session)) -> dict:
-    total = await session.scalar(select(func.count()).select_from(BankMovement))
-    rows = (await session.execute(select(BankMovement, CashFlowTransaction.is_cancelled).outerjoin(
-        CashFlowTransaction, BankMovement.cash_transaction_id == CashFlowTransaction.id).order_by(BankMovement.occurred_at.desc(),
+                       session: AsyncSession = Depends(get_session),
+                       start_date: Annotated[date | None, Query()] = None,
+                       end_date: Annotated[date | None, Query()] = None,
+                       direction: Annotated[Literal['INCOME', 'EXPENSE'] | None, Query()] = None,
+                       treatment: Annotated[Literal['BANK_ONLY', 'INCOME', 'EXPENSE', 'LINK', 'CANCELLED'] | None, Query()] = None,
+                       search: Annotated[str, Query(max_length=150)] = '') -> dict:
+    if start_date and end_date and end_date < start_date:
+        raise HTTPException(422, 'A data final não pode ser anterior à data inicial.')
+    conditions = []
+    zone = ZoneInfo('America/Sao_Paulo')
+    if start_date:
+        conditions.append(BankMovement.occurred_at >= datetime.combine(start_date, datetime.min.time(), tzinfo=zone))
+    if end_date:
+        if end_date == date.max:
+            raise HTTPException(422, 'Data final fora do intervalo suportado.')
+        conditions.append(BankMovement.occurred_at < datetime.combine(end_date + timedelta(days=1), datetime.min.time(), tzinfo=zone))
+    if direction:
+        conditions.append(BankMovement.direction == direction)
+    if treatment == 'CANCELLED':
+        conditions.append(CashFlowTransaction.is_cancelled.is_(True))
+    elif treatment:
+        conditions.append(BankMovement.disposition == treatment)
+    searchable = func.translate(func.lower(func.coalesce(BankMovement.description, '') + ' ' + func.coalesce(BankMovement.note, '')),
+        'áàâãäéèêëíìîïóòôõöúùûüçñ', 'aaaaaeeeeiiiiooooouuuucn')
+    for term in normalized(search).split():
+        conditions.append(searchable.contains(term, autoescape=True))
+    joined = select(BankMovement, CashFlowTransaction.is_cancelled).outerjoin(
+        CashFlowTransaction, BankMovement.cash_transaction_id == CashFlowTransaction.id).where(*conditions)
+    total = await session.scalar(select(func.count()).select_from(joined.subquery()))
+    rows = (await session.execute(joined.order_by(BankMovement.occurred_at.desc(),
         BankMovement.created_at.desc(), BankMovement.id.desc()).offset(offset).limit(limit))).all()
     return dict(total=total, items=[dict(id=str(row.id), occurred_at=row.occurred_at.isoformat(),
         direction=row.direction, description=row.description, amount=str(row.amount),
