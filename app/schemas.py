@@ -203,6 +203,7 @@ class DREResponse(BaseModel):
     operating_expenses: Decimal
     payment_fees: Decimal
     net_profit: Decimal
+    other_income: Decimal = Decimal('0.00')
 
 
 class ABCProduct(BaseModel):

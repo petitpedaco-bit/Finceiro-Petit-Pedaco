@@ -29,6 +29,7 @@ export interface DRE {
   gross_profit: string;
   operating_expenses: string;
   net_profit: string;
+  other_income: string;
 }
 
 export interface ABCProduct {

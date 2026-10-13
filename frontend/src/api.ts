@@ -18,8 +18,10 @@ export interface ExpenseSuggestion { expense_nature:string;expense_behavior:stri
 export interface BankCandidate { id:string;description:string;amount:string;occurred_at:string;is_sale:boolean }
 export interface BankRow { fingerprint:string;occurred_at:string;direction:'INCOME'|'EXPENSE';description:string;amount:string;duplicate:boolean;suggestion:ExpenseSuggestion|null;candidates:BankCandidate[] }
 export interface BankPreview { bank:string;rows:BankRow[];warnings:string[];income:string;expense:string }
-export interface BankChoice { fingerprint:string;action:'BANK_ONLY'|'EXPENSE'|'LINK';cash_transaction_id:string|null;category:string;payment_method:string;expense_nature:string;expense_behavior:string;expense_context:string;classification_reviewed:boolean }
-export interface BankRecord { id:string;occurred_at:string;direction:string;description:string;amount:string;disposition:string;cash_transaction_id:string|null;cash_cancelled:boolean }
+export interface BankChoice { fingerprint:string;action:'BANK_ONLY'|'INCOME'|'EXPENSE'|'LINK';cash_transaction_id:string|null;category:string;payment_method:string;expense_nature:string;expense_behavior:string;expense_context:string;classification_reviewed:boolean }
+export interface BankRecord { id:string;occurred_at:string;direction:'INCOME'|'EXPENSE';description:string;amount:string;disposition:BankChoice['action'];cash_transaction_id:string|null;cash_cancelled:boolean;version:number;note:string }
+export interface BankEditData extends BankRecord { expected_state:string;cash:Pick<ExpenseRecord,'id'|'category'|'payment_method'|'expense_nature'|'expense_behavior'|'expense_context'|'classification_reviewed'|'is_cancelled'>|null;candidates:BankCandidate[];suggestion:ExpenseSuggestion|null }
+export interface BankEditInput extends Omit<BankChoice,'fingerprint'> { expected_version:number;expected_state:string;note:string;reviewed:boolean }
 
 async function bankUpload<T>(path:string,file:File,selection?:unknown):Promise<T> {
   const data=new FormData();data.append('file',file);
@@ -49,6 +51,8 @@ export const api = {
   bankPreview:(file:File)=>bankUpload<BankPreview>('/bank-imports/nubank/preview',file),
   bankSave:(file:File,rows:BankChoice[])=>bankUpload<{saved:number;skipped:number;expenses:number;linked:number}>('/bank-imports/nubank/save',file,{rows,reviewed:true}),
   bankHistory:(offset=0)=>request<{items:BankRecord[];total:number}>(`/bank-imports/movements?limit=20&offset=${offset}`),
+  bankEditGet:(id:string)=>request<BankEditData>(`/bank-imports/movements/${id}/edit`),
+  bankEditSave:(id:string,data:BankEditInput)=>request<{id:string;version:number;message:string}>(`/bank-imports/movements/${id}`,{method:'PATCH',body:JSON.stringify(data)}),
   quotationProducts: (search:string,signal?:AbortSignal) => request<QuotationProduct[]>(`/quotations/products?search=${encodeURIComponent(search)}`,{signal}),
   products: () => request<Product[]>("/products"),
   createProduct: (data: ProductInput) => request<Product>("/products", { method: "POST", body: JSON.stringify(data) }),

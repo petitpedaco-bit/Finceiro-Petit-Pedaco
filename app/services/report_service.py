@@ -4,7 +4,7 @@ from decimal import Decimal
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import CashFlowTransaction, CashFlowType, Product, Sale, SaleItem
+from app.models import BankMovement, CashFlowTransaction, CashFlowType, Product, Sale, SaleItem
 from app.schemas import ABCCurveResponse, ABCProduct, CashFlowResponse, DREResponse
 
 ZERO = Decimal("0.00")
@@ -43,12 +43,18 @@ class ReportService:
             CashFlowTransaction.occurred_at < end,
         )
         expenses = (await self.session.scalar(expenses_stmt)) or ZERO
+        other_income = Decimal((await self.session.scalar(select(func.coalesce(func.sum(CashFlowTransaction.amount), 0)).where(
+            CashFlowTransaction.transaction_type == CashFlowType.INCOME,
+            CashFlowTransaction.sale_id.is_(None), CashFlowTransaction.is_cancelled.is_(False),
+            CashFlowTransaction.occurred_at >= start, CashFlowTransaction.occurred_at < end,
+            CashFlowTransaction.id.in_(select(BankMovement.cash_transaction_id).where(BankMovement.disposition == 'INCOME')),
+        ))) or ZERO)
         gross, discounts, net, fees = Decimal(revenue.gross), Decimal(revenue.discounts), Decimal(revenue.net), Decimal(revenue.fees)
         return DREResponse(
             start_date=start_date, end_date=end_date, gross_revenue=gross,
             deductions_and_discounts=discounts, net_revenue=net, cogs=Decimal(cogs),
             gross_profit=net - Decimal(cogs), operating_expenses=Decimal(expenses), payment_fees=fees,
-            net_profit=net - Decimal(cogs) - Decimal(expenses) - fees,
+            net_profit=net + other_income - Decimal(cogs) - Decimal(expenses) - fees, other_income=other_income,
         )
 
     async def get_abc_curve(self, start_date: date, end_date: date) -> ABCCurveResponse:

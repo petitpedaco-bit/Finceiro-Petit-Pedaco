@@ -8,5 +8,6 @@ export function defaultBankChoice(fingerprint:string):BankChoice {
 export function invalidBankChoice(choice:BankChoice,direction:'INCOME'|'EXPENSE'):boolean {
   if(choice.action==='LINK')return !choice.cash_transaction_id;
   if(choice.action==='EXPENSE')return direction!=='EXPENSE'||!choice.category.trim()||choice.expense_nature!=='UNCLASSIFIED'&&!choice.classification_reviewed;
+  if(choice.action==='INCOME')return direction!=='INCOME'||!choice.category.trim();
   return false;
 }

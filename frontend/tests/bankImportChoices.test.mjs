@@ -24,3 +24,9 @@ test('classified expenses need review and a nonempty category',()=>{
   assert.equal(invalidBankChoice({...choice,classification_reviewed:true},'EXPENSE'),false);
   assert.equal(invalidBankChoice({...choice,classification_reviewed:true,category:'   '},'EXPENSE'),true);
 });
+test('revenue requires an incoming movement and a nonempty category',()=>{
+  const choice={...defaultBankChoice('a'.repeat(64)),action:'INCOME',category:'Outras receitas'};
+  assert.equal(invalidBankChoice(choice,'INCOME'),false);
+  assert.equal(invalidBankChoice(choice,'EXPENSE'),true);
+  assert.equal(invalidBankChoice({...choice,category:' '},'INCOME'),true);
+});

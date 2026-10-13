@@ -133,6 +133,17 @@ class BankMovement(Base):
     description: Mapped[str] = mapped_column(String(255), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     disposition: Mapped[str] = mapped_column(String(16), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default='1')
+    note: Mapped[str | None] = mapped_column(Text)
     cash_transaction_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey('cash_flow_transactions.id', ondelete='SET NULL'), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BankMovementEdit(Base):
+    __tablename__ = 'bank_movement_edits'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    movement_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey('bank_movements.id'), nullable=False, index=True)
+    before: Mapped[dict] = mapped_column(JSON, nullable=False)
+    after: Mapped[dict] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

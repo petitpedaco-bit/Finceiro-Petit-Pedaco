@@ -10,7 +10,7 @@ from sqlalchemy import text
 from app.database import engine
 from app.models import Base
 
-SCHEMA_VERSION = '2026-10-13-expense-cancellation-v3'
+SCHEMA_VERSION = '2026-10-13-bank-edit-revenue-v4'
 
 
 async def initialize_database() -> None:
@@ -46,6 +46,8 @@ async def initialize_database() -> None:
             "ALTER TABLE cash_flow_transactions ADD COLUMN IF NOT EXISTS is_cancelled BOOLEAN NOT NULL DEFAULT FALSE",
             "ALTER TABLE cash_flow_transactions ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ",
             "CREATE INDEX IF NOT EXISTS ix_cash_flow_transactions_is_cancelled ON cash_flow_transactions (is_cancelled)",
+            "ALTER TABLE bank_movements ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE bank_movements ADD COLUMN IF NOT EXISTS note TEXT",
         ):
             await connection.execute(text(statement))
         await connection.execute(text('INSERT INTO app_schema_versions(name) VALUES (:version)'),{'version':SCHEMA_VERSION})

@@ -127,6 +127,26 @@ Para o GitHub Pages, configure a API remota antes de usar a importação.
 
 ## Importar extratos Nubank
 
+Após salvar um extrato, use **Editar** ou a lista na coluna **Tratamento**
+para abrir o editor e confirmar a alteração. Entradas podem ser adicionadas
+explicitamente como **Receita**; saídas, como **Despesa**. A receita criada
+entra no caixa e na DRE como **Outras receitas (extrato)**, sem criar venda,
+produto, estoque, CMV ou faturamento na curva ABC. Transferências, aportes,
+principal de empréstimos e recebimentos de vendas já lançadas não devem ser
+tratados como novas receitas/despesas. Para uma venda existente, use vínculo.
+
+Data, valor, direção e descrição original permanecem protegidos; observação,
+categoria, tratamento e classificação são editáveis. Alterar a categoria de
+receita/despesa criada pelo extrato mantém o mesmo lançamento. Trocar esse
+tratamento para conferência/vínculo cancela o lançamento próprio, preservando
+seu histórico; desfazer um vínculo com lançamento externo **não cancela** a
+venda/despesa externa. Lançamentos cancelados só são recriados por nova edição
+explicitamente revisada. Edição exige versão e estado financeiro atuais;
+alterações concorrentes/cancelamentos externos retornam 409. Cada edição
+grava estado anterior/posterior para auditoria; a deduplicação do PDF é mantida.
+Rotas: `GET /bank-imports/movements/{id}/edit`,
+`PATCH /bank-imports/movements/{id}`.
+
 No histórico de custos e despesas, **Cancelar** (ao lado de **Revisar**)
 retira a despesa dos cálculos de DRE/lucro, classificação e fluxo de caixa,
 incluindo saldos de abertura de períodos seguintes. Requer confirmação.
@@ -146,7 +166,7 @@ identificada por hash e documentos/contas nas descrições são ocultados.
 Nomes de contrapartes e descrições das movimentações selecionadas são mantidos.
 
 O padrão é **somente conferência bancária**, separado da DRE/fluxo operacional.
-Entradas não criam vendas, receitas, estoque ou taxas. Pode-se **vincular**
+Entradas não criam vendas, receitas, estoque ou taxas automaticamente. Pode-se **vincular**
 manualmente um lançamento existente do mesmo valor/direção em até três dias,
 sem criar um novo valor. As sugestões por valor/data não comprovam correspondência.
 Para uma saída ainda não contabilizada, escolha **registrar nova despesa**, revise
