@@ -20,6 +20,7 @@ async def expense_breakdown(start_date:date=Query(...),end_date:date=Query(...),
     rows=await session.execute(select(CashFlowTransaction.expense_nature,CashFlowTransaction.expense_behavior,
         func.sum(CashFlowTransaction.amount).label('amount'),func.count().label('count')).where(
         CashFlowTransaction.transaction_type==CashFlowType.EXPENSE,
+        CashFlowTransaction.is_cancelled.is_(False),
         CashFlowTransaction.occurred_at>=start,CashFlowTransaction.occurred_at<end
     ).group_by(CashFlowTransaction.expense_nature,CashFlowTransaction.expense_behavior))
     return {'groups':[dict(row._mapping) for row in rows],

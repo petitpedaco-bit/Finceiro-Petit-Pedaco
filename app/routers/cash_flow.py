@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +42,8 @@ async def suggest_classification(payload: ExpenseSuggestionRequest, session: Asy
         CashFlowTransaction.transaction_type==CashFlowType.EXPENSE,
         CashFlowTransaction.classification_key==classification_key(payload.description),
         CashFlowTransaction.expense_context==payload.expense_context.value,
-        CashFlowTransaction.classification_reviewed.is_(True)
+        CashFlowTransaction.classification_reviewed.is_(True),
+        CashFlowTransaction.is_cancelled.is_(False)
     ).order_by(CashFlowTransaction.created_at.desc(),CashFlowTransaction.id.desc()).limit(3))).all()
     confirmed=[{'expense_nature':row.expense_nature,'expense_behavior':row.expense_behavior,'category':row.category or 'Outros / revisar'} for row in rows]
     return suggest(payload.description,payload.category,payload.expense_context.value,confirmed)
@@ -64,6 +66,8 @@ async def review_classification(expense_id:uuid.UUID,payload:ExpenseClassificati
         row=await session.scalar(select(CashFlowTransaction).where(CashFlowTransaction.id==expense_id).with_for_update())
         if row is None or row.transaction_type!=CashFlowType.EXPENSE:
             raise HTTPException(404,'Gasto não encontrado')
+        if row.is_cancelled:
+            raise HTTPException(409,'Uma despesa cancelada não pode ser revisada.')
         row.category=payload.category.strip()
         row.expense_nature=payload.expense_nature.value
         row.expense_behavior=payload.expense_behavior.value
@@ -73,3 +77,16 @@ async def review_classification(expense_id:uuid.UUID,payload:ExpenseClassificati
         await session.flush()
         result=ExpenseResponse.model_validate(row)
     return result
+
+
+@router.delete('/expenses/{expense_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def cancel_expense(expense_id: uuid.UUID, session: AsyncSession = Depends(get_session)) -> None:
+    """Cancelamento lógico idempotente; conserva valor, data e vínculo bancário para auditoria."""
+    async with session.begin():
+        row = await session.scalar(select(CashFlowTransaction).where(
+            CashFlowTransaction.id == expense_id).with_for_update())
+        if row is None or row.transaction_type != CashFlowType.EXPENSE:
+            raise HTTPException(404, 'Despesa não encontrada')
+        if not row.is_cancelled:
+            row.is_cancelled = True
+            row.cancelled_at = datetime.now(timezone.utc)

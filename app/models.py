@@ -113,6 +113,8 @@ class CashFlowTransaction(Base):
     expense_context: Mapped[str] = mapped_column(String(24), nullable=False, default='GENERAL', server_default='GENERAL')
     classification_reviewed: Mapped[bool] = mapped_column(nullable=False, default=False, server_default='false')
     classification_key: Mapped[str | None] = mapped_column(String(64), index=True)
+    is_cancelled: Mapped[bool] = mapped_column(nullable=False, default=False, server_default='false', index=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     sale: Mapped[Sale | None] = relationship(back_populates="cash_transaction")

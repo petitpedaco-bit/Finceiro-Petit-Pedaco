@@ -37,6 +37,7 @@ class ReportService:
         )
         cogs = (await self.session.scalar(cogs_stmt)) or ZERO
         expenses_stmt = select(func.coalesce(func.sum(CashFlowTransaction.amount), 0)).where(
+            CashFlowTransaction.is_cancelled.is_(False),
             CashFlowTransaction.transaction_type == CashFlowType.EXPENSE,
             CashFlowTransaction.occurred_at >= start,
             CashFlowTransaction.occurred_at < end,
@@ -99,11 +100,12 @@ class ReportService:
             else_=-CashFlowTransaction.amount,
         )
         opening = (await self.session.scalar(select(func.coalesce(func.sum(signed_amount), 0)).where(
+            CashFlowTransaction.is_cancelled.is_(False),
             CashFlowTransaction.occurred_at < start
         ))) or ZERO
         amounts = (await self.session.execute(select(
             func.coalesce(func.sum(case((CashFlowTransaction.transaction_type == CashFlowType.INCOME, CashFlowTransaction.amount), else_=0)), 0),
             func.coalesce(func.sum(case((CashFlowTransaction.transaction_type == CashFlowType.EXPENSE, CashFlowTransaction.amount), else_=0)), 0),
-        ).where(CashFlowTransaction.occurred_at >= start, CashFlowTransaction.occurred_at < end))).one()
+        ).where(CashFlowTransaction.is_cancelled.is_(False), CashFlowTransaction.occurred_at >= start, CashFlowTransaction.occurred_at < end))).one()
         income, expenses = Decimal(amounts[0]), Decimal(amounts[1])
         return CashFlowResponse(start_date=start_date, end_date=end_date, opening_balance=Decimal(opening), income=income, expenses=expenses, closing_balance=Decimal(opening) + income - expenses)

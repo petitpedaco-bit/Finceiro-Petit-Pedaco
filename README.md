@@ -127,6 +127,17 @@ Para o GitHub Pages, configure a API remota antes de usar a importação.
 
 ## Importar extratos Nubank
 
+No histórico de custos e despesas, **Cancelar** (ao lado de **Revisar**)
+retira a despesa dos cálculos de DRE/lucro, classificação e fluxo de caixa,
+incluindo saldos de abertura de períodos seguintes. Requer confirmação.
+O lançamento permanece sinalizado como cancelado, com valor/data originais
+e data de cancelamento. Não desfaz o pagamento no banco, não mexe em vendas,
+produtos ou estoque e não permite cancelar entradas por essa rota.
+Cancelamentos repetidos não alteram novamente os valores. Se a despesa veio
+de um extrato, o vínculo bancário e a deduplicação são preservados; a
+reimportação não recria automaticamente a despesa cancelada.
+Rota: `DELETE /cash-flow/expenses/{id}`.
+
 Em **Despesas**, use **Importar extrato PDF — Nubank**. Aceita o PDF digital
 original (até 8 MB, 40 páginas, 1.000 movimentações), não fotos ou PDFs com senha.
 A prévia confere as movimentações com os totais diários; divergências bloqueiam

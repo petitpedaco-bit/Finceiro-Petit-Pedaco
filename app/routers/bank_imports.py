@@ -47,6 +47,7 @@ async def candidates_for(session: AsyncSession, parsed: dict) -> list[CashFlowTr
     # Busca delimitada: somente valores do extrato e datas próximas; nunca vincula por conta própria.
     linked = select(BankMovement.cash_transaction_id).where(BankMovement.cash_transaction_id.is_not(None))
     return list((await session.scalars(select(CashFlowTransaction).where(
+        CashFlowTransaction.is_cancelled.is_(False),
         CashFlowTransaction.occurred_at >= min(dates) - timedelta(days=3),
         CashFlowTransaction.occurred_at <= max(dates) + timedelta(days=3),
         CashFlowTransaction.amount.in_({Decimal(row['amount']) for row in parsed['rows']}),
@@ -55,7 +56,7 @@ async def candidates_for(session: AsyncSession, parsed: dict) -> list[CashFlowTr
 
 
 def matches(row: dict, transaction: CashFlowTransaction) -> bool:
-    return (transaction.transaction_type.value == row['direction'] and
+    return (not transaction.is_cancelled and transaction.transaction_type.value == row['direction'] and
             transaction.amount == Decimal(row['amount']) and
             abs((transaction.occurred_at - datetime.fromisoformat(row['occurred_at'])).total_seconds()) <= 3 * 86400)
 
@@ -148,8 +149,10 @@ async def save_nubank(file: UploadFile = File(...), selection: str = Form(..., m
 async def bank_history(limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0),
                        session: AsyncSession = Depends(get_session)) -> dict:
     total = await session.scalar(select(func.count()).select_from(BankMovement))
-    rows = (await session.scalars(select(BankMovement).order_by(BankMovement.occurred_at.desc(),
+    rows = (await session.execute(select(BankMovement, CashFlowTransaction.is_cancelled).outerjoin(
+        CashFlowTransaction, BankMovement.cash_transaction_id == CashFlowTransaction.id).order_by(BankMovement.occurred_at.desc(),
         BankMovement.created_at.desc(), BankMovement.id.desc()).offset(offset).limit(limit))).all()
     return dict(total=total, items=[dict(id=str(row.id), occurred_at=row.occurred_at.isoformat(),
         direction=row.direction, description=row.description, amount=str(row.amount),
-        disposition=row.disposition, cash_transaction_id=str(row.cash_transaction_id) if row.cash_transaction_id else None) for row in rows])
+        disposition=row.disposition, cash_cancelled=bool(cancelled),
+        cash_transaction_id=str(row.cash_transaction_id) if row.cash_transaction_id else None) for row, cancelled in rows])

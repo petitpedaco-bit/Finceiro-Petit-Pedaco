@@ -9,7 +9,7 @@ const actions:Record<string,string>={BANK_ONLY:'Somente conferência bancária',
 const money=(value:string)=>Number(value).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const date=(value:string)=>new Date(value).toLocaleDateString('pt-BR');
 
-export default function BankImportPanel({onSaved}:{onSaved:()=>Promise<void>}) {
+export default function BankImportPanel({onSaved,refreshVersion=0}:{onSaved:()=>Promise<void>;refreshVersion?:number}) {
   const [file,setFile]=useState<File|null>(null);
   const [preview,setPreview]=useState<BankPreview|null>(null);
   const [choices,setChoices]=useState<Record<string,BankChoice>>({});
@@ -25,7 +25,8 @@ export default function BankImportPanel({onSaved}:{onSaved:()=>Promise<void>}) {
   const [historyOpen,setHistoryOpen]=useState(false);
   const [historyError,setHistoryError]=useState('');
   const load=async(page=offset)=>{setLoading(true);setHistoryError('');try{const data=await api.bankHistory(page);setHistory(data.items);setTotal(data.total);}catch(reason){setHistoryError((reason as Error).message);}finally{setLoading(false);}};
-  useEffect(()=>{if(historyOpen)void load(offset);},[historyOpen,offset]);
+  useEffect(()=>{if(historyOpen)void load(offset);},[historyOpen,offset,refreshVersion]);
+  useEffect(()=>{if(refreshVersion){setPreview(null);setChoices({});setSelected({});setReviewed(false);}},[refreshVersion]);
   const change=(id:string,fields:Partial<BankChoice>)=>{setChoices(current=>({...current,[id]:{...current[id],...fields}}));setReviewed(false);};
   const read=async()=>{
     if(!file || busy)return;setBusy(true);setError('');setMessage('');setPreview(null);setReviewed(false);
@@ -86,7 +87,7 @@ export default function BankImportPanel({onSaved}:{onSaved:()=>Promise<void>}) {
     <button type="button" onClick={()=>setHistoryOpen(!historyOpen)}>{historyOpen?'Ocultar':'Ver'} histórico de extratos importados</button>
     {historyOpen && <><h3>Conferência bancária — separada do resultado operacional</h3><button disabled={loading} onClick={()=>void load()}>Atualizar histórico bancário</button>
       {loading && <p role="status">Carregando extratos…</p>}{historyError && <p className="alert error">{historyError}</p>}
-      <div className="bank-table"><table><thead><tr><th>Data</th><th>Direção</th><th>Descrição</th><th>Valor</th><th>Tratamento</th></tr></thead><tbody>{history.map(row=><tr key={row.id}><td>{date(row.occurred_at)}</td><td>{row.direction==='INCOME'?'Entrada':'Saída'}</td><td className="bank-description">{row.description}</td><td>{money(row.amount)}</td><td>{actions[row.disposition]}{row.disposition==='LINK'&&!row.cash_transaction_id && <small> · Lançamento removido/cancelado</small>}</td></tr>)}</tbody></table></div>
+      <div className="bank-table"><table><thead><tr><th>Data</th><th>Direção</th><th>Descrição</th><th>Valor</th><th>Tratamento</th></tr></thead><tbody>{history.map(row=><tr key={row.id}><td>{date(row.occurred_at)}</td><td>{row.direction==='INCOME'?'Entrada':'Saída'}</td><td className="bank-description">{row.description}</td><td>{money(row.amount)}</td><td>{row.cash_cancelled?'Despesa cancelada · sem impacto financeiro':actions[row.disposition]}{row.disposition==='LINK'&&!row.cash_transaction_id && <small> · Lançamento removido/cancelado</small>}</td></tr>)}</tbody></table></div>
       {!loading&&!historyError&&!history.length && <p>Nenhum extrato importado.</p>}
       <div className="quotation-actions"><button disabled={offset===0||loading} onClick={()=>setOffset(Math.max(0,offset-20))}>Anterior</button><span>{total?`${offset+1}–${Math.min(offset+20,total)} de ${total}`:'0 registros'}</span><button disabled={offset+20>=total||loading} onClick={()=>setOffset(offset+20)}>Próxima</button></div></>}
   </section>;

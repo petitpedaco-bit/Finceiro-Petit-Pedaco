@@ -13,13 +13,13 @@ export interface QuotationBook { sheets: {name: string; rows: SheetCell[][]}[] }
 export interface WorkbookDocument { id?: string; version: number; title: string; source_url: string | null; book: QuotationBook; bindings: Record<string,string> }
 export interface WorkbookResult { book: QuotationBook; rows: QuotationRow[]; warnings: string[] }
 export interface WorkbookSummary extends Omit<WorkbookDocument,'book'> { rows:QuotationRow[]; warnings:string[]; sheet_names:string[] }
-export interface ExpenseRecord { id:string;description:string;category:string|null;amount:string;payment_method:string;occurred_at:string;expense_nature:string;expense_behavior:string;expense_context:string;classification_reviewed:boolean }
+export interface ExpenseRecord { id:string;description:string;category:string|null;amount:string;payment_method:string;occurred_at:string;expense_nature:string;expense_behavior:string;expense_context:string;classification_reviewed:boolean;is_cancelled:boolean;cancelled_at:string|null }
 export interface ExpenseSuggestion { expense_nature:string;expense_behavior:string;category:string;reason:string;confidence:string;method:string }
 export interface BankCandidate { id:string;description:string;amount:string;occurred_at:string;is_sale:boolean }
 export interface BankRow { fingerprint:string;occurred_at:string;direction:'INCOME'|'EXPENSE';description:string;amount:string;duplicate:boolean;suggestion:ExpenseSuggestion|null;candidates:BankCandidate[] }
 export interface BankPreview { bank:string;rows:BankRow[];warnings:string[];income:string;expense:string }
 export interface BankChoice { fingerprint:string;action:'BANK_ONLY'|'EXPENSE'|'LINK';cash_transaction_id:string|null;category:string;payment_method:string;expense_nature:string;expense_behavior:string;expense_context:string;classification_reviewed:boolean }
-export interface BankRecord { id:string;occurred_at:string;direction:string;description:string;amount:string;disposition:string;cash_transaction_id:string|null }
+export interface BankRecord { id:string;occurred_at:string;direction:string;description:string;amount:string;disposition:string;cash_transaction_id:string|null;cash_cancelled:boolean }
 
 async function bankUpload<T>(path:string,file:File,selection?:unknown):Promise<T> {
   const data=new FormData();data.append('file',file);
@@ -59,6 +59,7 @@ export const api = {
   suggestExpense: (data:unknown) => request<ExpenseSuggestion>('/cash-flow/expenses/suggest',{method:'POST',body:JSON.stringify(data)}),
   expenseHistory: (offset=0) => request<{items:ExpenseRecord[];total:number}>(`/cash-flow/expenses?limit=20&offset=${offset}`),
   reviewExpense: (id:string,data:unknown) => request<ExpenseRecord>(`/cash-flow/expenses/${id}/classification`,{method:'PATCH',body:JSON.stringify(data)}),
+  cancelExpense: (id:string) => request<void>(`/cash-flow/expenses/${id}`,{method:'DELETE'}),
   expenseBreakdown: (start:string,end:string) => request<{groups:{expense_nature:string;expense_behavior:string;amount:string;count:number}[];notice:string}>(`/reports/expense-breakdown?start_date=${start}&end_date=${end}`),
   dre: (start: string, end: string) => request<DRE>(`/reports/dre?start_date=${start}&end_date=${end}`),
   abc: (start: string, end: string) => request<ABCResponse>(`/reports/abc-curve?start_date=${start}&end_date=${end}`),

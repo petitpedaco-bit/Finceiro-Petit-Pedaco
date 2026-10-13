@@ -188,6 +188,8 @@ class ExpenseResponse(ExpenseClassification):
     amount: Decimal
     payment_method: PaymentMethod
     occurred_at: datetime
+    is_cancelled: bool
+    cancelled_at: datetime | None
 
 
 class DREResponse(BaseModel):

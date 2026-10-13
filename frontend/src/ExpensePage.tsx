@@ -19,6 +19,7 @@ export default function ExpensePage({refresh,notify,fail}:{refresh:()=>Promise<v
   const [suggesting,setSuggesting]=useState(false);
   const [error,setError]=useState('');
   const [loading,setLoading]=useState(false);
+  const [bankVersion,setBankVersion]=useState(0);
   const load=async(page=offset)=>{
     setLoading(true);
     try{const result=await api.expenseHistory(page);setRecords(result.items);setTotal(result.total);}
@@ -39,6 +40,7 @@ export default function ExpensePage({refresh,notify,fail}:{refresh:()=>Promise<v
     return()=>{active=false;setSuggesting(false);window.clearTimeout(timer);};
   },[form.description,form.category,form.expense_context]);
   const beginReview=(record:ExpenseRecord)=>{
+    if(record.is_cancelled)return;
     setReview(record);setSuggestion(null);setError('');
     const local=new Date(record.occurred_at);const date=local.toLocaleDateString('en-CA');
     setForm({description:record.description,category:record.category??'',amount:record.amount,payment_method:record.payment_method,
@@ -59,8 +61,22 @@ export default function ExpensePage({refresh,notify,fail}:{refresh:()=>Promise<v
     }catch(reason){const message=(reason as Error).message;setError(message);fail(message);}
     finally{setBusy(false);}
   };
+  const cancel=async(record:ExpenseRecord)=>{
+    if(busy||loading||record.is_cancelled)return;
+    if(!window.confirm(`Cancelar a despesa “${record.description}” de ${money(record.amount)}?\n\nEla deixará de contar nas despesas, no fluxo de caixa e no lucro de todos os períodos, mas ficará no histórico. Isso não desfaz o pagamento no banco.`))return;
+    setBusy(true);setError('');
+    try{
+      await api.cancelExpense(record.id);
+      setBankVersion(version=>version+1);
+      setRecords(current=>current.map(row=>row.id===record.id?{...row,is_cancelled:true,cancelled_at:new Date().toISOString()}:row));
+      if(review?.id===record.id){setReview(null);setForm(blank());setSuggestion(null);}
+      notify('Despesa cancelada. Removida dos cálculos financeiros e mantida no histórico.');
+      await load(offset);await refresh();
+    }catch(reason){const message=(reason as Error).message;setError(message);fail(message);}
+    finally{setBusy(false);}
+  };
   return <div className="expense-page">
-    <BankImportPanel onSaved={async()=>{if(offset===0)await load(0);else setOffset(0);await refresh();}}/>
+    <BankImportPanel refreshVersion={bankVersion} onSaved={async()=>{if(offset===0)await load(0);else setOffset(0);await refresh();}}/>
     <section className="form-page card"><h2>{review?'Revisar classificação':'Custos e despesas'}</h2>
       <p className="subtitle">Classificação local por regras e exemplos confirmados, sem API paga. Sugestões não são lançadas automaticamente.</p>
       <form onSubmit={submit}><fieldset disabled={busy} className="expense-fields">
@@ -86,8 +102,8 @@ export default function ExpensePage({refresh,notify,fail}:{refresh:()=>Promise<v
     </section>
     <section className="card abc"><div className="card-title"><h2>Histórico de custos e despesas</h2><button type="button" disabled={loading} onClick={()=>void load()}>Atualizar histórico</button></div>
       {loading && <p role="status">Carregando histórico…</p>}
-      <table><thead><tr><th>Data</th><th>Descrição</th><th>Classificação</th><th>Comportamento</th><th>Valor</th><th></th></tr></thead><tbody>{records.map(record=><tr key={record.id}>
-        <td>{new Date(record.occurred_at).toLocaleDateString('pt-BR')}</td><td>{record.description}</td><td>{natureLabels[record.expense_nature]}{!record.classification_reviewed && <small> · Não revisado</small>}</td><td>{behaviorLabels[record.expense_behavior]}</td><td>{money(record.amount)}</td><td><button disabled={busy} onClick={()=>beginReview(record)}>Revisar</button></td>
+      <table><thead><tr><th>Data</th><th>Descrição</th><th>Classificação</th><th>Comportamento</th><th>Valor original</th><th>Ações / situação</th></tr></thead><tbody>{records.map(record=><tr key={record.id} className={record.is_cancelled?'expense-cancelled':''}>
+        <td>{new Date(record.occurred_at).toLocaleDateString('pt-BR')}</td><td>{record.description}</td><td>{natureLabels[record.expense_nature]}{!record.classification_reviewed && <small> · Não revisado</small>}</td><td>{behaviorLabels[record.expense_behavior]}</td><td>{money(record.amount)}</td><td>{record.is_cancelled?<span className="expense-cancelled-label" title={record.cancelled_at?`Cancelada em ${new Date(record.cancelled_at).toLocaleString('pt-BR')}`:undefined}>Cancelada · sem impacto financeiro</span>:<><button type="button" disabled={busy||loading} onClick={()=>beginReview(record)}>Revisar</button><button type="button" className="expense-cancel-button" disabled={busy||loading} onClick={()=>void cancel(record)}>Cancelar</button></>}</td>
       </tr>)}</tbody></table>
       {!records.length && !loading && <p>Nenhum gasto registrado.</p>}
       <div className="quotation-actions"><button disabled={offset===0 || loading} onClick={()=>setOffset(Math.max(0,offset-20))}>Anterior</button><span>{total?`${offset+1}–${Math.min(offset+20,total)} de ${total}`:'0 registros'}</span><button disabled={offset+20>=total || loading} onClick={()=>setOffset(offset+20)}>Próxima</button></div>
