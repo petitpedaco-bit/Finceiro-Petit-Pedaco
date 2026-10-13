@@ -127,6 +127,19 @@ Para o GitHub Pages, configure a API remota antes de usar a importação.
 
 ## Importar extratos Nubank
 
+Em **Relatórios → Vendas do sistema**, o histórico de vendas confirmadas em
+**Nova venda** usa `GET /sales/history` com paginação e situação Todas/Ativas/
+Canceladas. Inclui todos os períodos, identificação, produtos, quantidades e
+pagamento. Reconsulta sem cache ao abrir, voltar à janela ou atualizar. Uma
+venda só é anunciada como confirmada após resposta bem-sucedida do checkout,
+com identificação; cliques simultâneos no botão são bloqueados na interface.
+**Excluir / cancelar** retira a venda dos cálculos, devolve estoque e remove
+sua entrada de caixa atomicamente, preservando a venda como cancelada no
+histórico e o extrato bancário original. Atualiza DRE, caixa e ABC imediatamente.
+Cancelamentos repetidos não devolvem estoque duas vezes. Não realiza estorno
+no banco nem apaga definitivamente o histórico. Receitas do extrato não são
+vendas de produtos e permanecem no histórico bancário.
+
 O histórico bancário tem filtros por data inicial/final, entrada/saída,
 tratamento (incluindo cancelados) e busca em descrição/observação, sem diferenciar
 maiúsculas ou acentos. **Aplicar filtros** volta à primeira página; **Limpar

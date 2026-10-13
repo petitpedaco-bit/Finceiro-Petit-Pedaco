@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { defaultBankChoice, invalidBankChoice } from '../src/bankImportChoices.ts';
 import { bankHistoryQuery, emptyBankFilters } from '../src/bankHistoryFilters.ts';
+import { readFileSync } from 'node:fs';
 
 test('bank movements default to reconciliation only, never automatic financial entries',()=>{
   const choice=defaultBankChoice('a'.repeat(64));
@@ -39,4 +40,14 @@ test('history filters retain pagination and safely encode description searches',
   assert.equal(params.get('start_date'),'2026-10-12');assert.equal(params.get('treatment'),'BANK_ONLY');
   const cleared=new URLSearchParams(bankHistoryQuery(0,emptyBankFilters()));
   assert.equal([...cleared.keys()].length,2);assert.equal(cleared.get('offset'),'0');
+});
+test('sale confirmation is guarded and report cancellation refreshes financial totals',()=>{
+  const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
+  const panel=readFileSync(new URL('../src/SalesHistoryPanel.tsx',import.meta.url),'utf8');
+  const api=readFileSync(new URL('../src/api.ts',import.meta.url),'utf8');
+  assert.ok(app.includes('if(checkoutLock.current)return'));
+  assert.ok(app.includes('disabled={submitting} className="pos sale-guard"'));
+  assert.ok(app.includes('<SalesHistoryPanel refresh={refresh}/>'));
+  assert.ok(panel.includes('await load();await refresh();'));
+  assert.ok(api.includes("cache:'no-store'"));
 });

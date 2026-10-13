@@ -59,3 +59,8 @@ export interface SaleSummary {
   created_at: string;
   is_cancelled: boolean;
 }
+
+export interface SaleHistoryEntry extends SaleSummary {
+  products:{name:string;sku:string;quantity:number}[];
+  cancelled_at:string|null;
+}

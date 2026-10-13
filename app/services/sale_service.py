@@ -137,10 +137,12 @@ class SaleService:
             if sale is None:
                 raise ProductNotFoundError("Venda não encontrada")
             if sale.is_cancelled:
-                raise ValueError("Esta venda já foi cancelada")
+                return
             items = (await self.session.execute(select(SaleItem).where(SaleItem.sale_id == sale.id))).scalars().all()
+            products = {product.id: product for product in (await self.session.scalars(select(Product).where(
+                Product.id.in_({item.product_id for item in items})).order_by(Product.id).with_for_update())).all()}
             for item in items:
-                product = await self.session.scalar(select(Product).where(Product.id == item.product_id).with_for_update())
+                product = products.get(item.product_id)
                 if product is not None:
                     product.current_stock += item.quantity
             sale.is_cancelled = True

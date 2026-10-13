@@ -60,7 +60,7 @@ export const api = {
   createProduct: (data: ProductInput) => request<Product>("/products", { method: "POST", body: JSON.stringify(data) }),
   updateProduct: (id: string, data: Partial<ProductInput>) => request<Product>(`/products/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   deleteProduct: (id: string) => request<void>(`/products/${id}`, { method: "DELETE" }),
-  checkout: (data: unknown) => request("/sales/checkout", { method: "POST", body: JSON.stringify(data) }),
+  checkout: (data: unknown) => request<{id:string}>("/sales/checkout", { method: "POST", body: JSON.stringify(data) }),
   expense: (data: unknown) => request("/cash-flow/expenses", { method: "POST", body: JSON.stringify(data) }),
   suggestExpense: (data:unknown) => request<ExpenseSuggestion>('/cash-flow/expenses/suggest',{method:'POST',body:JSON.stringify(data)}),
   expenseHistory: (offset=0) => request<{items:ExpenseRecord[];total:number}>(`/cash-flow/expenses?limit=20&offset=${offset}`),
@@ -71,6 +71,7 @@ export const api = {
   abc: (start: string, end: string) => request<ABCResponse>(`/reports/abc-curve?start_date=${start}&end_date=${end}`),
   cashFlow: (start: string, end: string) => request<CashFlow>(`/reports/cash-flow?start_date=${start}&end_date=${end}`),
   sales: () => request<SaleSummary[]>("/sales"),
+  salesHistory:(offset=0,state='ALL',signal?:AbortSignal)=>request<{total:number;items:import('./types').SaleHistoryEntry[]}>(`/sales/history?limit=20&offset=${offset}&state=${encodeURIComponent(state)}`,{cache:'no-store',signal}),
   cancelSale: (id: string) => request<void>(`/sales/${id}`, { method: "DELETE" }),
   quotationGoogle: (url: string) => request<QuotationPreview>("/quotations/preview/google", { method: "POST", body: JSON.stringify({url}) }),
   quotationExcel: async (file: File): Promise<QuotationPreview> => {
