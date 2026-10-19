@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, JSON, Numeric, String, Text, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, JSON, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import Uuid
 
@@ -146,4 +146,38 @@ class BankMovementEdit(Base):
     movement_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey('bank_movements.id'), nullable=False, index=True)
     before: Mapped[dict] = mapped_column(JSON, nullable=False)
     after: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Supplier(Base):
+    __tablename__ = 'suppliers'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    identity: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    cnpj: Mapped[str | None] = mapped_column(String(14))
+
+
+class SupplierProduct(Base):
+    __tablename__ = 'supplier_products'
+    __table_args__ = (UniqueConstraint('supplier_id', 'identity'),)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    supplier_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('suppliers.id'), nullable=False, index=True)
+    identity: Mapped[str] = mapped_column(String(220), nullable=False)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    unit: Mapped[str] = mapped_column(String(16), nullable=False)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(14, 4), nullable=False)
+    price_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class PurchaseReceipt(Base):
+    __tablename__ = 'purchase_receipts'
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    supplier_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('suppliers.id'), nullable=False, index=True)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    fiscal_key: Mapped[str | None] = mapped_column(String(44), unique=True)
+    number: Mapped[str] = mapped_column(String(80), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    items: Mapped[list] = mapped_column(JSON, nullable=False)
+    cash_transaction_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey('cash_flow_transactions.id', ondelete='SET NULL'), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

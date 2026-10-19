@@ -17,6 +17,7 @@ from app.models import BankMovement, BankMovementEdit, CashFlowTransaction, Cash
 from app.schemas import ExpenseClassification
 from app.services.expense_classifier import classification_key, suggest
 from app.services.nubank_service import MAX_PDF_BYTES, normalized, read_pdf
+from app.services.receipt_service import receipt_candidates, receipt_candidates_many
 
 router = APIRouter(prefix='/bank-imports', tags=['Extratos Nubank'])
 
@@ -135,6 +136,8 @@ async def edit_bank_movement(movement_id: uuid.UUID, payload: BankEditRequest,
             if keep_owned:
                 target = old
             else:
+                if payload.action == 'EXPENSE' and any(item['cash_transaction_id'] for item in await receipt_candidates(session, movement_row(bank))):
+                    raise HTTPException(409, 'Possível duplicidade com cupom já lançado. Use Vincular a lançamento existente ou somente conferência bancária.')
                 target = CashFlowTransaction(transaction_type=CashFlowType(payload.action), description=bank.description,
                     amount=bank.amount, occurred_at=bank.occurred_at, payment_method=payload.payment_method,
                     notes='Criado após edição revisada de movimentação Nubank.')
@@ -195,7 +198,9 @@ async def preview_nubank(file: UploadFile = File(...), session: AsyncSession = D
     candidates = await candidates_for(session, parsed)
     if len(candidates) > 1000:
         parsed['warnings'].append('Muitos lançamentos candidatos: a lista de sugestões foi limitada. Confira o histórico manualmente.')
-    for row in parsed['rows']:
+    receipt_matches = await receipt_candidates_many(session, parsed['rows'])
+    for row, receipts in zip(parsed['rows'], receipt_matches):
+        row['receipts'] = receipts
         row['duplicate'] = row['fingerprint'] in existing
         row['suggestion'] = suggest(row['description'], '', 'GENERAL', []) if row['direction'] == 'EXPENSE' else None
         row['candidates'] = [dict(id=str(item.id), description=item.description, amount=str(item.amount),
@@ -227,6 +232,8 @@ async def save_selection(parsed: dict, selection: ImportSelection, session: Asyn
             if choice.action == 'EXPENSE':
                 if row['direction'] != 'EXPENSE':
                     raise HTTPException(422, 'Somente saídas podem ser registradas como despesas.')
+                if any(item['cash_transaction_id'] for item in await receipt_candidates(session, row)):
+                    raise HTTPException(409, 'Possível duplicidade com cupom já lançado. Vincule a despesa existente ou escolha somente conferência bancária.')
                 if not choice.category.strip():
                     raise HTTPException(422, 'Informe uma categoria para a despesa.')
                 expense = CashFlowTransaction(

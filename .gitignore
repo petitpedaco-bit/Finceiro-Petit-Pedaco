@@ -11,3 +11,5 @@ venv/
 *.xlsx
 *.xls
 *.pdf
+node_modules/
+dist/

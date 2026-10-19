@@ -5,9 +5,10 @@ import ProductModal from "./ProductModal";
 import SaleProductPicker from "./SaleProductPicker";
 import ExpensePage, { ExpenseBreakdown } from "./ExpensePage";
 import SalesHistoryPanel from "./SalesHistoryPanel";
+import SuppliersPage from "./SuppliersPage";
 import type { ABCResponse, CashFlow, DRE, PaymentMethod, Product } from "./types";
 
-type Screen = "dashboard" | "products" | "sales" | "expenses" | "reports";
+type Screen = "dashboard" | "products" | "sales" | "expenses" | "reports" | "suppliers";
 const today = new Date().toISOString().slice(0, 10);
 const firstDay = `${today.slice(0, 8)}01`;
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -49,6 +50,7 @@ function App() {
   const content = {
     dashboard: <Dashboard dre={dre} cash={cash} abc={abc} period={period} />,
     products: null,
+    suppliers: <SuppliersPage refresh={refreshHistory}/>,
     sales: <Sales products={products} refresh={refreshHistory} notify={notify} fail={fail} />,
     expenses: <ExpensePage refresh={refreshHistory} notify={notify} fail={fail} />,
     reports: <Reports key={historyVersion} period={period} setPeriod={setPeriod} dre={dre} cash={cash} abc={abc} refresh={refreshFinancials}/>,
@@ -56,11 +58,11 @@ function App() {
 
   return <div className="shell">
     <aside className="sidebar"><div className="brand"><span>PP</span><div>Petit Pedaço<small>Gestão inteligente</small></div></div>
-      <nav>{([ ["dashboard", "⌂", "Visão geral"], ["products", "▣", "Produtos"], ["sales", "◉", "Nova venda"], ["expenses", "−", "Despesas"], ["reports", "▤", "Relatórios"] ] as [Screen, string, string][]).map(([id, icon, label]) =>
+      <nav>{([ ["dashboard", "⌂", "Visão geral"], ["products", "▣", "Produtos"], ["suppliers", "◇", "Fornecedores"], ["sales", "◉", "Nova venda"], ["expenses", "−", "Despesas"], ["reports", "▤", "Relatórios"] ] as [Screen, string, string][]).map(([id, icon, label]) =>
         <button key={id} type="button" aria-current={screen === id ? "page" : undefined} aria-label={label} title={label} className={screen === id ? "active" : ""} onClick={() => setScreen(id)}><i aria-hidden="true">{icon}</i>{label}</button>)}</nav>
       <div className="sidebar-footer">API Financeira<br/><small>v1.0</small></div>
     </aside>
-    <main><header><div><p className="eyebrow">CONTROLE FINANCEIRO</p><h1>{({ dashboard: "Visão geral", products: "Produtos", sales: "Ponto de venda", expenses: "Lançar despesa", reports: "Relatórios" } as Record<Screen, string>)[screen]}</h1></div><div className="date">{new Intl.DateTimeFormat("pt-BR", { dateStyle: "full" }).format(new Date())}</div></header>
+    <main><header><div><p className="eyebrow">CONTROLE FINANCEIRO</p><h1>{({ dashboard: "Visão geral", products: "Produtos", suppliers: "Fornecedores", sales: "Ponto de venda", expenses: "Lançar despesa", reports: "Relatórios" } as Record<Screen, string>)[screen]}</h1></div><div className="date">{new Intl.DateTimeFormat("pt-BR", { dateStyle: "full" }).format(new Date())}</div></header>
       {notice && <div className="alert success">✓ {notice}</div>}{error && <div className="alert error">! {error}</div>}
       <div className="data-refresh"><button type="button" disabled={loadingReports} onClick={()=>void refreshHistory()}>Atualizar dados e histórico</button>{loadingReports && <span role="status">Carregando relatórios… A primeira abertura da hospedagem gratuita pode demorar.</span>}</div>
       {content}

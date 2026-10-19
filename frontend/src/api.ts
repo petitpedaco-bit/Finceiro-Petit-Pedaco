@@ -18,7 +18,7 @@ export interface WorkbookSummary extends Omit<WorkbookDocument,'book'> { rows:Qu
 export interface ExpenseRecord { id:string;description:string;category:string|null;amount:string;payment_method:string;occurred_at:string;expense_nature:string;expense_behavior:string;expense_context:string;classification_reviewed:boolean;is_cancelled:boolean;cancelled_at:string|null }
 export interface ExpenseSuggestion { expense_nature:string;expense_behavior:string;category:string;reason:string;confidence:string;method:string }
 export interface BankCandidate { id:string;description:string;amount:string;occurred_at:string;is_sale:boolean }
-export interface BankRow { fingerprint:string;occurred_at:string;direction:'INCOME'|'EXPENSE';description:string;amount:string;duplicate:boolean;suggestion:ExpenseSuggestion|null;candidates:BankCandidate[] }
+export interface BankRow { fingerprint:string;occurred_at:string;direction:'INCOME'|'EXPENSE';description:string;amount:string;duplicate:boolean;suggestion:ExpenseSuggestion|null;candidates:BankCandidate[];receipts?:{id:string;supplier:string;amount:string;cash_transaction_id:string|null}[] }
 export interface BankPreview { bank:string;rows:BankRow[];warnings:string[];income:string;expense:string }
 export interface BankChoice { fingerprint:string;action:'BANK_ONLY'|'INCOME'|'EXPENSE'|'LINK';cash_transaction_id:string|null;category:string;payment_method:string;expense_nature:string;expense_behavior:string;expense_context:string;classification_reviewed:boolean }
 export interface BankRecord { id:string;occurred_at:string;direction:'INCOME'|'EXPENSE';description:string;amount:string;disposition:BankChoice['action'];cash_transaction_id:string|null;cash_cancelled:boolean;version:number;note:string }
@@ -34,7 +34,7 @@ async function bankUpload<T>(path:string,file:File,selection?:unknown):Promise<T
   return result;
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+export async function request<T>(path: string, options?: RequestInit): Promise<T> {
   if (import.meta.env.MODE === "github-pages" && !import.meta.env.VITE_API_URL) {
     throw new Error("A interface foi publicada. Falta configurar o endereço da API na nuvem (VITE_API_URL).");
   }
@@ -44,7 +44,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({ detail: "Erro de comunicação com a API" }));
-    throw new Error(body.detail ?? "Não foi possível concluir a operação");
+    throw new Error(typeof body.detail === 'string' ? body.detail : 'Confira os campos e os valores informados.');
   }
   return response.status === 204 ? (undefined as T) : response.json() as Promise<T>;
 }

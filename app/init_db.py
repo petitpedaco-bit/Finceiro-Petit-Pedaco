@@ -10,7 +10,7 @@ from sqlalchemy import text
 from app.database import engine
 from app.models import Base
 
-SCHEMA_VERSION = '2026-10-13-bank-edit-revenue-v4'
+SCHEMA_VERSION = '2026-10-19-supplier-receipts-v5'
 
 
 async def initialize_database() -> None:

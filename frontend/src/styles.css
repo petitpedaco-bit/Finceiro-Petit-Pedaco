@@ -67,6 +67,19 @@ main { margin-left: 255px; width: calc(100% - 255px); padding: 38px 5.5%; max-wi
 .sale-guard { min-width:0; border:0; margin:0; padding:0; }.sale-history-products { white-space:normal; min-width:200px; max-width:350px; }.sale-history-products small { display:block; color:#74867c; }.sales-history-panel label { display:block; max-width:260px; margin:12px 0; }
 
 /* Keep wide financial tables inside their panels, including on narrow phones. */
+.receipt-reader { margin-bottom:20px; }
+.receipt-reader h2, .suppliers-page h2 { font:700 22px "Playfair Display",serif; color:#173f35; }
+.receipt-reader p, .suppliers-page p { font-size:14px; line-height:1.6; }
+.receipt-reader label { display:block; margin:14px 0; font-size:13px; }
+.receipt-reader textarea { width:100%; border:1px solid #dfe5df; border-radius:7px; padding:10px; font:inherit; }
+.receipt-image { display:block; max-width:100%; max-height:280px; margin:12px auto; object-fit:contain; }
+.receipt-reader .table-wrap input { min-width:100px; }
+.receipt-reader .table-wrap td:first-child input { min-width:220px; }
+.receipt-reader .receipt-review { display:flex; align-items:flex-start; gap:8px; }
+.receipt-review input { width:auto; flex-shrink:0; margin-top:3px; }
+.receipt-duplicate-alert { padding:10px; margin-top:8px; border:1px solid #d2a748; border-radius:7px; background:#fff4d6; color:#694a0c; font-size:12px; }
+.receipt-history { border-bottom:1px solid #e7e3e0; padding:14px 0; }
+.receipt-history summary { cursor:pointer; line-height:1.6; }
 main, .grid > *, .pos > *, .card, .cart-lines { min-width:0; }
 input, select, textarea { max-width:100%; }
 button:focus-visible { outline:3px solid #b46c87; outline-offset:3px; }
