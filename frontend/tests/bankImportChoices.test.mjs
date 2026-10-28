@@ -45,8 +45,9 @@ test('sale confirmation is guarded and report cancellation refreshes financial t
   const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
   const panel=readFileSync(new URL('../src/SalesHistoryPanel.tsx',import.meta.url),'utf8');
   const api=readFileSync(new URL('../src/api.ts',import.meta.url),'utf8');
-  assert.ok(app.includes('if(checkoutLock.current)return'));
-  assert.ok(app.includes('disabled={submitting} className="pos sale-guard"'));
+  const checkout=readFileSync(new URL('../src/SaleCheckout.tsx',import.meta.url),'utf8');
+  assert.ok(checkout.includes('if(checkoutLock.current)return'));
+  assert.ok(checkout.includes('disabled={submitting} className="pos sale-guard"'));
   assert.ok(app.includes('<SalesHistoryPanel refresh={refresh}/>'));
   assert.ok(panel.includes('await load();await refresh();'));
   assert.ok(api.includes("cache:'no-store'"));

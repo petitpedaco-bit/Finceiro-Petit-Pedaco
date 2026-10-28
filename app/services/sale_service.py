@@ -33,6 +33,21 @@ def pagbank_fee_rate(payment_method: object, card_brand: str | None) -> Decimal:
     return Decimal("0")
 
 
+def allocate_sale_discount(subtotals: list[Decimal], total: Decimal) -> list[Decimal]:
+    """Largest-remainder allocation: exact cents, no negative discount on the final line."""
+    values = [int(value * 100) for value in subtotals]
+    base = sum(values)
+    requested = int(total * 100)
+    if requested < 0 or requested > base or any(value < 0 for value in values):
+        raise ValueError('Desconto incompatível com os subtotais.')
+    if not base: return [Decimal('0.00') for _ in values]
+    allocated = [requested * value // base for value in values]
+    remaining = requested - sum(allocated)
+    order = sorted(range(len(values)), key=lambda index: (-(requested*values[index] % base), index))
+    for index in order[:remaining]: allocated[index] += 1
+    return [Decimal(value)/100 for value in allocated]
+
+
 class SaleService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -77,6 +92,8 @@ class SaleService:
                 subtotal_after_item_discount, request.sale_discount_type, request.sale_discount_value
             )
             net_total = money(subtotal_after_item_discount - sale_discount)
+            if request.expected_net_total is not None and request.expected_net_total != net_total:
+                raise ValueError('O preço ou as condições dos produtos mudaram. Atualize os produtos e confira novamente o total antes de confirmar.')
             fee_rate = pagbank_fee_rate(request.payment_method, request.card_brand)
             fee_amount = money(net_total * fee_rate)
             sale = Sale(
@@ -91,17 +108,9 @@ class SaleService:
             self.session.add(sale)
             await self.session.flush()
 
-            # Rateia desconto da venda nas linhas; o resíduo de arredondamento fica na última.
-            allocated = Decimal("0")
+            allocations = allocate_sale_discount([row[4] for row in prepared], sale_discount)
             for index, (product, quantity, gross, item_discount, subtotal) in enumerate(prepared):
-                allocated_sale_discount = (
-                    sale_discount - allocated
-                    if index == len(prepared) - 1
-                    else money(sale_discount * subtotal / subtotal_after_item_discount)
-                    if subtotal_after_item_discount
-                    else Decimal("0")
-                )
-                allocated += allocated_sale_discount
+                allocated_sale_discount = allocations[index]
                 product.current_stock -= quantity
                 self.session.add(
                     SaleItem(

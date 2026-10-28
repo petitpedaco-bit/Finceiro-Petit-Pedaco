@@ -1,19 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "./api";
 import Quotations from "./Quotations";
 import ProductModal from "./ProductModal";
-import SaleProductPicker from "./SaleProductPicker";
 import ExpensePage, { ExpenseBreakdown } from "./ExpensePage";
 import SalesHistoryPanel from "./SalesHistoryPanel";
+import SaleCheckout from "./SaleCheckout";
 import SuppliersPage from "./SuppliersPage";
-import type { ABCResponse, CashFlow, DRE, PaymentMethod, Product } from "./types";
+import type { ABCResponse, CashFlow, DRE, Product } from "./types";
 
 type Screen = "dashboard" | "products" | "sales" | "expenses" | "reports" | "suppliers";
 const today = new Date().toISOString().slice(0, 10);
 const firstDay = `${today.slice(0, 8)}01`;
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const money = (value: string | number = 0) => currency.format(Number(value));
-const paymentNames: Record<PaymentMethod, string> = { PIX: "PIX", CARD: "Cartão", CASH: "Dinheiro" };
 
 function App() {
   const [screen, setScreen] = useState<Screen>("dashboard");
@@ -95,14 +94,8 @@ function Products({ products, refresh, notify, fail }: { products: Product[]; re
     {editing !== undefined && <ProductModal product={editing} close={() => setEditing(undefined)} refresh={refresh} notify={notify} fail={fail}/>}</>;
 }
 
-function Sales({ products, refresh, notify, fail }: { products: Product[]; refresh: () => Promise<void>; notify: (m: string) => void; fail: (m: string) => void }) {
-  const [submitting,setSubmitting]=useState(false);
-  const checkoutLock=useRef(false);
-  const [lines, setLines] = useState<{ product: Product; quantity: number; discount: number }[]>([]); const [payment, setPayment] = useState<PaymentMethod>("PIX"); const [saleDiscount, setSaleDiscount] = useState(0);
-  const subtotal = lines.reduce((sum, line) => sum + Number(line.product.sale_price) * line.quantity - line.discount, 0); const total = Math.max(0, subtotal - saleDiscount);
-  const add = (product: Product) => setLines(current => { const existing = current.find(line => line.product.id === product.id); return existing ? current.map(line => line.product.id === product.id ? { ...line, quantity: Math.min(line.quantity + 1, product.current_stock) } : line) : [...current, { product, quantity: 1, discount: 0 }]; });
-  const checkout = async () => { if(checkoutLock.current)return; if (!lines.length) return fail("Adicione pelo menos um produto à venda."); checkoutLock.current=true;setSubmitting(true); try { const result=await api.checkout({ payment_method: payment, sale_discount_type: saleDiscount ? "FIXED" : null, sale_discount_value: saleDiscount, items: lines.map(line => ({ product_id: line.product.id, quantity: line.quantity, discount_type: line.discount ? "FIXED" : null, discount_value: line.discount })) }); setLines([]); setSaleDiscount(0); notify(`Venda ${result.id.slice(0,8)} confirmada. Disponível em Relatórios → Vendas do sistema.`); await refresh(); } catch (err) { fail((err as Error).message); } finally{checkoutLock.current=false;setSubmitting(false);} };
-  return <fieldset disabled={submitting} className="pos sale-guard" aria-label="Nova venda"><SaleProductPicker products={products} quantities={Object.fromEntries(lines.map(line=>[line.product.id,line.quantity]))} add={add}/><section className="cart"><h2>Venda atual</h2>{lines.length ? <div className="cart-lines">{lines.map(line => <div className="cart-line" key={line.product.id}><div><b>{line.product.name}</b><small>{money(line.product.sale_price)} cada</small></div><input aria-label="Quantidade" type="number" min="1" max={line.product.current_stock} value={line.quantity} onChange={e => setLines(lines.map(item => item.product.id === line.product.id ? { ...item, quantity: Number(e.target.value) } : item))}/><input aria-label="Desconto" title="Desconto em reais" type="number" min="0" max={Number(line.product.sale_price) * line.quantity} step="0.01" value={line.discount || ""} placeholder="Desc." onChange={e => setLines(lines.map(item => item.product.id === line.product.id ? { ...item, discount: Number(e.target.value) } : item))}/><button className="remove" onClick={() => setLines(lines.filter(item => item.product.id !== line.product.id))}>×</button></div>)}</div> : <Empty text="Selecione um produto na lista e clique em Adicionar à venda."/>}<div className="checkout"><label>Desconto da venda (R$)<input type="number" min="0" max={subtotal} step="0.01" value={saleDiscount || ""} onChange={e => setSaleDiscount(Number(e.target.value))}/></label><div className="payment">{(["PIX", "CARD", "CASH"] as PaymentMethod[]).map(method => <button className={payment === method ? "selected" : ""} key={method} onClick={() => setPayment(method)}>{paymentNames[method]}</button>)}</div><div className="total"><span>Total a receber</span><strong>{money(total)}</strong></div><button className="primary checkout-button" disabled={submitting} onClick={() => void checkout()}>{submitting?'Confirmando…':'Confirmar venda'}</button></div></section></fieldset>;
+function Sales(props: { products: Product[]; refresh: () => Promise<void>; notify: (m: string) => void; fail: (m: string) => void }) {
+  return <SaleCheckout {...props}/>;
 }
 
 

@@ -86,6 +86,7 @@ class CheckoutRequest(BaseModel):
     card_brand: str | None = Field(default=None, max_length=30)
     sale_discount_type: DiscountType | None = None
     sale_discount_value: Decimal = Field(default=Decimal("0"), ge=0, max_digits=14, decimal_places=2)
+    expected_net_total: Decimal | None = Field(default=None, ge=0, max_digits=14, decimal_places=2)
 
     @field_validator("items")
     @classmethod
